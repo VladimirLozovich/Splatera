@@ -1,0 +1,83 @@
+body, html {
+  margin: 0;
+  padding: 0;
+  background-color: #222222;
+  color: #ffffff;
+  font-family: sans-serif;
+  height: 100vh;
+  overflow: hidden;
+}
+
+.app-container {
+  height: 100vh;
+  padding: 20px;
+  box-sizing: border-box;
+  overflow-y: auto;
+  transition: border 0.2s ease;
+  border: 1px dashed transparent;
+}
+
+.app-container.dragging {
+  border: 1px dashed #FFD16D;
+  background-color: #1a1a1a;
+}
+
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: #666;
+}
+
+.empty-state h2 {
+  color: #F2C94C;
+  margin-bottom: 8px;
+}
+
+.my-masonry-grid {
+  display: flex;
+  margin-left: -16px;
+  width: auto;
+}
+.my-masonry-grid_column {
+  padding-left: 16px;
+  background-clip: padding-box;
+}
+
+/* Карточка картинки */
+.card {
+  background: #1E1E1E;
+  border-radius: 12px;
+  border: 1px solid #333;
+  margin-bottom: 16px;
+  overflow: hidden;
+  position: relative;
+  transition: border-color 0.2s;
+}
+
+.card:hover {
+  border-color: #FFD16D;
+}
+
+.card img {
+  width: 100%;
+  display: block;
+}
+
+.card-overlay {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: linear-gradient(to top, rgba(0,0,0,0.8), transparent);
+  padding: 20px 10px 10px;
+  opacity: 0;
+  transition: opacity 0.2s;
+  font-size: 12px;
+}
+
+.card:hover .card-overlay {
+  opacity: 1;
+}
