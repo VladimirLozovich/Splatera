@@ -1,1 +1,9 @@
 .obsidian
+
+.DS_Store
+Thumbs.db
+.vscode/
+
+splatera/dist/
+splatera/src-tauri/target/
+splatera/node_modules/

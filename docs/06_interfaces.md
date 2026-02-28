@@ -1,6 +1,4 @@
-# Интерфейсы и контракты системы
-
-В архитектуре Splatera взаимодействие строится на строгих контрактах. Со стороны Backend (Rust) используются `Traits`, со стороны Frontend (TypeScript) — `Interfaces`.
+> Взаимодействие строится на строгих контрактах. Со стороны Backend (Rust) используются `Traits`, со стороны Frontend - `Interfaces`.
 
 ## 1. Backend Traits (Rust)
 

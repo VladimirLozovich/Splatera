@@ -1,14 +1,10 @@
-# Детальная структура кода (Classes & Structs)
+> Тут описана структура классов (для TS) и структур (для Rust), которые реализуют архитектуру приложения.
 
-В этом документе описана структура классов (для TS) и структур (для Rust), которые реализуют архитектуру приложения.
+## Backend: Структуры Rust (Core Logic)
 
-## 1. Backend: Структуры Rust (Core Logic)
+### Точка входа и Состояние (App State)
 
-Ядро приложения построено на композиции структур.
-
-### 1.1 Точка входа и Состояние (App State)
-
-`AppState` — это разделяемый ресурс, доступный во всех командах Tauri (Thread-safe).
+Это разделяемый ресурс, доступный во всех командах Tauri (Thread-safe).
 
 ```rust
 struct AppState {
@@ -18,9 +14,9 @@ struct AppState {
 }
 ```
 
-### 1.2 Сервисный слой (Service Layer)
+### Сервисный слой (Service Layer)
 
-`LibraryService` — фасад для всей бизнес-логики. Он координирует работу репозитория и процессора изображений.
+Фасад для всей бизнес-логики. Он координирует работу репозитория и процессора изображений.
 
 ```rust
 struct LibraryService {
@@ -40,9 +36,9 @@ impl LibraryService {
 }
 ```
 
-### 1.3 Инфраструктура (Infrastructure Implementation)
+### Инфраструктура (Infrastructure Implementation)
 
-Реализация интерфейсов, описанных в этапе 6.1.
+> Реализация интерфейсов, описанных в этапе [06_interfaces](https://github.com/koksler/Splatera/blob/master/docs/06_interfaces.md).
 
 ```rust
 struct JsonRepository {
@@ -56,18 +52,27 @@ struct ImageSharpProcessor {
 }
 ```
 
-### 1.4 Домен (Domain Entities)
+### Домен (Domain Entities)
 
-Основные сущности данных (как описано в этапе 4, но более детально для кода).
+Основные сущности данных (как описано в [этапе 4](https://github.com/koksler/Splatera/blob/master/docs/04_domain_dto_mapping.md)).
 
 ```rust
 struct Asset {
-    id: Uuid,
-    original_path: PathBuf,
-    kind: AssetKind,
-    metadata: FileMetadata,
-    tags: HashSet<String>, // HashSet для уникальности и быстрого поиска
-    color_palette: Palette,
+    id: String,              // UUID v4
+    original_path: String,   // Абсолютный путь к исходному файлу на диске
+    preview_path: Option<String>, // Путь к сгенерированному превью (для картинок)
+    kind: AssetKind,         // Тип контента
+    dominant_colors: Vec<String>, // HEX-коды (напр. ["#FF0000", "#00FF00"])
+    tags: Vec<String>,       // Список тегов (авто + ручные)
+    metadata: FileMetadata,  // Технические данные
+    created_at: u64,         // Unix timestamp добавления в базу
+}
+
+enum AssetKind {
+    Image, // JPG, PNG, WEBP, GIF, SVG
+    Code,  // JS, PY, RS, JSON, CSS...
+    Text,  // TXT, MD
+    Unknown
 }
 
 struct Palette {
@@ -77,11 +82,11 @@ struct Palette {
 }
 ```
 
-## 2. Frontend: Классы и Компоненты (TypeScript/React)
+## Frontend: Классы и Компоненты
 
 На клиенте используется функциональный подход (React Hooks), но архитектурно выделяются следующие блоки.
 
-### 2.1 State Management (Store)
+### State Management (Store)
 
 `useLibraryStore` (Zustand) выполняет роль ViewModel для всего приложения.
 
@@ -106,7 +111,7 @@ class LibraryStore {
 }
 ```
 
-### 2.2 UI Components (Views)
+### UI Components (Views)
 
 Иерархия компонентов интерфейса.
 - `AppShell`: Корневой лейаут (TitleBar + ContentArea).
@@ -119,7 +124,7 @@ class LibraryStore {
 - `FilterPanel`: Управление состоянием фильтра.
     - *Props*: `activeTags: string[]`, `onTagToggle: fn`.
 
-## 3. Диаграмма классов (Mermaid)
+## Диаграмма классов (Mermaid)
 
 Визуализация связей между слоями (Frontend <-> Bridge <-> Backend).
 
