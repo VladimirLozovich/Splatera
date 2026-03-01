@@ -1,9 +1,49 @@
+@font-face {
+  font-family: 'JetBrainsMono NFP';
+  src: url('./assets/fonts/JetBrainsMonoNFP-Regular.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* Подключаем жирное начертание */
+@font-face {
+  font-family: 'JetBrainsMono NFP';
+  src: url('./assets/fonts/JetBrainsMonoNL-SemiBold.ttf') format('truetype');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+:root {
+  --color-border: #7C7C7C;
+  --color-surface: #525252; /* Фон кнопок и лейблов */
+  
+  --color-bg: #222222;
+
+  --color-text-main: #FFFFFF;
+  --color-text-secondary: #616161;
+  --color-text-button: #AAAAAA;
+
+  --color-accent: #FFD16D;
+
+  font-family: 'JetBrainsMono NFP', monospace;
+}
+
+body {
+  background-color: var(--color-bg);
+  color: var(--color-text-main);
+  /* Если будешь подключать шрифт JetBrains, добавь его сюда */
+  font-family: 'JetBrainsMono NFP', monospace;
+  -webkit-font-smoothing: antialiased; 
+  -moz-osx-font-smoothing: grayscale;
+}
+
 body, html {
   margin: 0;
   padding: 0;
   background-color: #222222;
   color: #ffffff;
-  font-family: sans-serif;
   height: 100vh;
   overflow: hidden;
 }

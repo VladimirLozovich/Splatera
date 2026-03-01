@@ -1,21 +1,40 @@
 import { useState, useEffect } from 'react';
 import { listen } from '@tauri-apps/api/event';
 import { invoke } from '@tauri-apps/api/core';
+
 import Masonry from 'react-masonry-css';
+
 import './App.css';
 
+import { 
+  Copy, 
+  Maximize, 
+  CircleX, 
+  Minimize, 
+  Minimize2, 
+  FolderSearch, 
+  Filter, 
+  ArrowUpDown, 
+  Import 
+} from 'lucide-react';
+
+import Button from './components/button';
+import Label from './components/label';
+import Card from './components/card';
+
 function App() {
-  const[images, setImages] = useState([]);
-  const [isDragging, setIsDragging] = useState(false);
+  const [images, setImages] = useState([]);
+  const[isDragging, setIsDragging] = useState(false);
 
   useEffect(() => {
     console.log("Приложение загружено. Слушаем события Tauri...");
 
-    // Блокируем нативный браузерный D&D
+    // Блокируем нативный браузерный D&D, чтобы окно не пыталось открыть файл как вкладку
     const preventDefault = (e) => e.preventDefault();
     window.addEventListener('dragover', preventDefault);
     window.addEventListener('drop', preventDefault);
 
+    // Tauri listen() возвращает Promise. Сохраняем их для правильной отписки.
     const unlistenDragEnterPromise = listen('tauri://drag-enter', () => {
       setIsDragging(true);
     });
@@ -30,7 +49,9 @@ function App() {
       const filePaths = event.payload.paths;
       if (!filePaths || filePaths.length === 0) return;
 
-      const validExtensions =['.png', '.jpg', '.jpeg', '.gif', '.webp', '.bmp'];
+      console.log('Файлы брошены! Пути:', filePaths);
+
+      const validExtensions =['.png', '.jpg', '.jpeg', '.gif', '.webp', '.bmp', '.svg'];
       
       for (const path of filePaths) {
         const ext = path.slice(path.lastIndexOf('.')).toLowerCase();
@@ -39,13 +60,17 @@ function App() {
           try {
             const bytes = await invoke('read_file_bytes', { path });
             
-            const blob = new Blob([new Uint8Array(bytes)], { type: `image/${ext.replace('.', '')}` });
+            // Превращаем байты в Blob и делаем URL для превью
+            const blobType = ext === '.svg' ? 'image/svg+xml' : `image/${ext.replace('.', '')}`;
+            const blob = new Blob([new Uint8Array(bytes)], { type: blobType });
             const previewUrl = URL.createObjectURL(blob);
+            
+            // Получаем имя файла из абсолютного пути
             const fileName = path.split(/[/\\]/).pop();
 
+            // Добавляем в сетку с защитой от дубликатов
             setImages(prev => {
               if (prev.some(img => img.path === path)) {
-                console.log(`Файл ${fileName} уже есть в сетке, пропускаем.`);
                 return prev;
               }
               return[...prev, {
@@ -63,6 +88,7 @@ function App() {
       }
     });
 
+    // Очистка событий при закрытии/перерендере компонента
     return () => {
       window.removeEventListener('dragover', preventDefault);
       window.removeEventListener('drop', preventDefault);
@@ -71,8 +97,9 @@ function App() {
       unlistenDragLeavePromise.then(unlisten => unlisten());
       unlistenDropPromise.then(unlisten => unlisten());
     };
-  },[]);
+  }, []);
 
+  // Настройки сетки Masonry
   const breakpointColumnsObj = {
     default: 4,
     1100: 3,
@@ -94,12 +121,7 @@ function App() {
           columnClassName="my-masonry-grid_column"
         >
           {images.map(img => (
-            <div key={img.id} className="card">
-              <img src={img.preview} alt={img.name} />
-              <div className="card-overlay">
-                <span>{img.name}</span>
-              </div>
-            </div>
+            <Card key={img.id} file={img} />
           ))}
         </Masonry>
       )}
