@@ -1,0 +1,51 @@
+.splatera-label {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+
+    background-color: var(--color-surface);
+    border: 1px solid var(--color-border);
+    color: var(--color-text-button);
+
+    border-radius: 6px;
+    padding: 8px 5px 8px 5px;
+    
+    font-family: inherit;
+    font-size: 12px;
+    font-weight: 700;
+    box-sizing: border-box;
+    
+    cursor: pointer;
+    overflow: hidden; 
+    transition: all 0.1s ease;
+    user-select: none;
+
+    height: 35px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.25);
+  }
+  
+  .splatera-label:not(.inactive):hover {
+    border-color: var(--color-text-button);
+  }
+  
+  .splatera-label.inactive {
+    border-color: #3e3e3e;
+  }
+  
+  .splatera-label.inactive::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-color: rgba(0, 0, 0, 0.5);
+    z-index: 1; 
+    transition: background-color 0.1s ease;
+  }
+  
+  .splatera-label.inactive:hover::after {
+    background-color: rgba(0, 0, 0, 0.1);
+  }
+  
+  .splatera-label:active {
+    filter: brightness(1.5);
+  }
