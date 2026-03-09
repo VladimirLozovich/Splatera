@@ -1,6 +1,6 @@
 import { Copy, Maximize } from 'lucide-react';
-import Button from './button';
-import Label from './label';
+import Button from './Button';
+import Label from './Label';
 import './CardPopup.css';
 
 export default function CardPopup({ title, dateText, tags =[], onCopy, onMaximize }) {

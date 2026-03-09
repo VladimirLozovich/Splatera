@@ -6,7 +6,6 @@
   font-display: swap;
 }
 
-/* Подключаем жирное начертание */
 @font-face {
   font-family: 'JetBrainsMono NFP';
   src: url('./assets/fonts/JetBrainsMonoNL-SemiBold.ttf') format('truetype');
@@ -15,9 +14,24 @@
   font-display: swap;
 }
 
+.disable-hover,
+.disable-hover * {
+  pointer-events: none !important;
+}
+
+::-webkit-scrollbar {
+  width: 5px;
+  background-color: var(--color-bg);
+}
+
+::-webkit-scrollbar-thumb {
+  background-color: var(--color-border);
+  border-radius: 9999px;
+}
+
 :root {
   --color-border: #7C7C7C;
-  --color-surface: #525252; /* Фон кнопок и лейблов */
+  --color-surface: #525252; 
   
   --color-bg: #222222;
 
@@ -33,33 +47,35 @@
 body {
   background-color: var(--color-bg);
   color: var(--color-text-main);
-  /* Если будешь подключать шрифт JetBrains, добавь его сюда */
   font-family: 'JetBrainsMono NFP', monospace;
   -webkit-font-smoothing: antialiased; 
   -moz-osx-font-smoothing: grayscale;
+  overscroll-behavior-y: none;  
+  overflow-x: hidden;
 }
 
 body, html {
   margin: 0;
   padding: 0;
-  background-color: #222222;
+  background-color: var(--color-bg);
   color: #ffffff;
-  height: 100vh;
-  overflow: hidden;
 }
 
 .app-container {
-  height: 100vh;
-  padding: 20px;
+  min-height: 100vh;
+  width: 100vw;
   box-sizing: border-box;
-  overflow-y: auto;
-  transition: border 0.2s ease;
+  transition: border 0.2s ease, background-color 0.2s ease;
   border: 1px dashed transparent;
 }
 
 .app-container.dragging {
   border: 1px dashed #FFD16D;
   background-color: #1a1a1a;
+}
+
+.content-container {
+  padding: 0 20px 20px 20px;
 }
 
 .empty-state {
@@ -76,48 +92,6 @@ body, html {
   margin-bottom: 8px;
 }
 
-.my-masonry-grid {
-  display: flex;
-  margin-left: -16px;
-  width: auto;
-}
-.my-masonry-grid_column {
-  padding-left: 16px;
-  background-clip: padding-box;
-}
-
-/* Карточка картинки */
-.card {
-  background: #1E1E1E;
-  border-radius: 12px;
-  border: 1px solid #333;
-  margin-bottom: 16px;
-  overflow: hidden;
-  position: relative;
-  transition: border-color 0.2s;
-}
-
-.card:hover {
-  border-color: #FFD16D;
-}
-
-.card img {
-  width: 100%;
-  display: block;
-}
-
-.card-overlay {
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  background: linear-gradient(to top, rgba(0,0,0,0.8), transparent);
-  padding: 20px 10px 10px;
-  opacity: 0;
-  transition: opacity 0.2s;
-  font-size: 12px;
-}
-
-.card:hover .card-overlay {
-  opacity: 1;
+.app-container.is-scrolling .splatera-card {
+  pointer-events: none; 
 }

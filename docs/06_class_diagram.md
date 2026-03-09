@@ -65,6 +65,8 @@ struct Asset {
     dominant_colors: Vec<String>, // HEX-коды (напр. ["#FF0000", "#00FF00"])
     tags: Vec<String>,       // Список тегов (авто + ручные)
     metadata: FileMetadata,  // Технические данные
+    width: u32,
+    height: u32,
     created_at: u64,         // Unix timestamp добавления в базу
 }
 
