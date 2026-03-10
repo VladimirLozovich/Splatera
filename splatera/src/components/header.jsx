@@ -17,11 +17,19 @@ import Button from './Button';
 import Label from './Label';
 import './header.css';
 
-export default function Header() {
+export default function Header({ activeFilter, setActiveFilter }) {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedColor, setSelectedColor] = useState('#FFD16D');
   
   const appWindow = getCurrentWindow();
+
+  const handleTagClick = (tag) => {
+    if (activeFilter === tag) {
+      setActiveFilter(null);
+    } else {
+      setActiveFilter(tag);
+    }
+  };
 
   return (
     <header className="splatera-header" data-tauri-drag-region>
@@ -38,6 +46,7 @@ export default function Header() {
             placeholder="Type to ponder..." 
             icon={FolderSearch}
             value={searchQuery}
+            // В будущем тут можно вызывать бэкенд для полнотекстового поиска
             onChange={(e) => setSearchQuery(e.target.value)}
           />
         </div>
@@ -48,19 +57,36 @@ export default function Header() {
           icon={Import} 
           // Обернули текст, чтобы скрыть его через CSS на мобилках
           text={<span className="import-text">Import a new file</span>} 
-          onClick={() => console.log('Открываем диалог импорта')} 
+          onClick={() => console.log('Открываем диалог импорта (Tauri Dialog API)')} 
           className="import-btn"
         />
       </div>
 
-      {/* 3. Блок с тегами и фильтрами (будет скрыт на узких экранах) */}
+      {/* 3. Блок с тегами и фильтрами */}
       <div className="header-secondary-controls">
         <div className="suggested-tags">
           <span className="tags-label">Suggested tags:</span>
-          <Label text="PNG" isActive={true} />
-          <Label text="SVG" isActive={false} />
-          <Label text="Text" isActive={false} />
-          <Label text="Images" isActive={true} />
+          
+          {/* ИЗМЕНЕНО: Оживляем кнопки Label */}
+          {/* Мы передаем функцию onClick и проверяем, совпадает ли тег с активным фильтром */}
+          
+          <div onClick={() => handleTagClick('png')}>
+            <Label text="PNG" isActive={activeFilter === 'png'} />
+          </div>
+          
+          <div onClick={() => handleTagClick('svg')}>
+            <Label text="SVG" isActive={activeFilter === 'svg'} />
+          </div>
+          
+          <div onClick={() => handleTagClick('txt')}>
+            <Label text="Text" isActive={activeFilter === 'txt'} />
+          </div>
+          
+          {/* Для "Images" мы можем пока не делать логику, или позже сделать фильтр по kind === 'Image' */}
+          <div onClick={() => handleTagClick('images')}>
+            <Label text="Images" isActive={activeFilter === 'images'} />
+          </div>
+
         </div>
 
         <div className="action-buttons">
