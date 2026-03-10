@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { listen } from '@tauri-apps/api/event';
-import { invoke, convertFileSrc } from '@tauri-apps/api/core';
+import { invoke } from '@tauri-apps/api/core';
+import { convertFileSrc } from '@tauri-apps/api/core';
 import { Masonry } from 'masonic';
 
 import './App.css';
@@ -14,6 +15,9 @@ function App() {
   const [isScrolling, setIsScrolling] = useState(false);
   const [notif, setNotif] = useState({ show: false, title: '', desc: '', progress: null });
   
+  // ДОБАВЛЕНО: Состояние для текущего фильтра (тега)
+  const [activeFilter, setActiveFilter] = useState(null);
+
   const notifTimeout = useRef(null); 
   const scrollTimeout = useRef(null);
 
@@ -26,6 +30,34 @@ function App() {
       setNotif(prev => ({ ...prev, show: false }));
     }, 3000);
   };
+
+  // ДОБАВЛЕНО: Функция загрузки сохраненной библиотеки из Rust
+  const loadLibrary = async (tag) => {
+    try {
+      const assets = await invoke('get_library', { filterTag: tag });
+      
+      // Преобразуем структуры Rust в формат для фронтенда
+      const loadedImages = assets.map(assetInfo => ({
+        id: assetInfo.id,
+        name: assetInfo.metadata.file_name,
+        path: assetInfo.original_path,
+        preview: assetInfo.preview_path ? convertFileSrc(assetInfo.preview_path) : '', 
+        tags: assetInfo.tags,
+        kind: assetInfo.kind,
+        width: assetInfo.width,
+        height: assetInfo.height
+      }));
+
+      setImages(loadedImages);
+    } catch (error) {
+      console.error("Ошибка при загрузке библиотеки:", error);
+    }
+  };
+
+  // ДОБАВЛЕНО: Загружаем базу при старте и каждый раз, когда меняется activeFilter
+  useEffect(() => {
+    loadLibrary(activeFilter);
+  }, [activeFilter]);
 
   useEffect(() => {
     console.log("App loaded. Listening to Tauri events...");
@@ -73,7 +105,8 @@ function App() {
 
             newlyProcessedImages.push({
               id: assetInfo.id,
-              name: path.split(/[/\\]/).pop(),
+              // ИЗМЕНЕНО: Теперь мы не парсим путь слэшами, а берем готовое имя из бэкенда
+              name: assetInfo.metadata.file_name, 
               path: assetInfo.original_path,
               preview: previewUrl, 
               tags: assetInfo.tags,
@@ -115,7 +148,7 @@ function App() {
       unlistenDragLeavePromise.then(unlisten => unlisten());
       unlistenDropPromise.then(unlisten => unlisten());
     };
-  }, []);
+  }, []); // Пустой массив зависимостей для D&D - это правильно!
 
   const handleScroll = () => {
     if (!isScrolling) setIsScrolling(true);
@@ -134,7 +167,8 @@ function App() {
       className={`app-container ${isDragging ? 'dragging' : ''} ${isScrolling ? 'is-scrolling' : ''}`}
       onScroll={handleScroll}
     >
-      <Header />
+      {/* ДОБАВЛЕНО: Передаем состояние фильтра в Header */}
+      <Header activeFilter={activeFilter} setActiveFilter={setActiveFilter} />
 
       <Notification 
         isVisible={notif.show} 
