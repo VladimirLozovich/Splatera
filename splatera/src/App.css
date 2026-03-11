@@ -21,12 +21,16 @@
 
 ::-webkit-scrollbar {
   width: 5px;
-  background-color: var(--color-bg);
+  background-color: transparent;
 }
 
 ::-webkit-scrollbar-thumb {
   background-color: var(--color-border);
   border-radius: 9999px;
+}
+::-webkit-scrollbar-track {
+  background-color: transparent;
+  margin-bottom: 20px; 
 }
 
 :root {
