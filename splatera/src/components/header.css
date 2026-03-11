@@ -77,20 +77,23 @@
   .suggested-tags {
     display: none;
   }
+  .splatera-btn.with-text span {
+    display: inline;
+  }
 }
 
-/* 2. Компактный режим (как на втором скриншоте) */
+/* 2. Компактный режим */
 @media (max-width: 900px) {
   .splatera-header {
     display: grid;
     grid-template-columns: auto 1fr auto;
     grid-template-rows: auto auto;
     gap: 15px;
-    padding: 15px 20px; /* Делаем отступы чуть меньше для компактности */
+    padding: 15px 20px; 
   }
 
   .header-secondary-controls {
-    display: none; /* Полностью скрываем фильтры */
+    display: block; 
   }
 
   /* Первая строка: Логотип и Кнопки окна */
@@ -112,11 +115,16 @@
   }
 
   .search-container {
-    max-width: none; /* Разрешаем поиску занять все свободное место */
+    max-width: none; 
   }
 
   /* Скрываем текст на кнопке "Import", оставляя только иконку */
-  .import-text {
+  .import-text,
+  .action-text, {
+    display: none;
+  }
+
+  .splatera-btn.with-text span {
     display: none;
   }
 }
