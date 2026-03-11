@@ -3,7 +3,6 @@
   border-radius: 12px;
   overflow: hidden;
   background-color: var(--color-bg);
-  margin-bottom: 15px;
   
   contain: layout style;
 }

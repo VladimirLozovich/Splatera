@@ -1,49 +1,88 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { HexColorPicker } from 'react-colorful';
-import Input from './input';
-import './colorPicker.css';
+import {
+  useFloating,
+  autoUpdate,
+  offset,
+  flip,
+  shift,
+  useClick,
+  useDismiss,
+  useRole,
+  useInteractions,
+  FloatingFocusManager,
+} from '@floating-ui/react';
+import Input from './Input';
+import './ColorPicker.css';
 
 export default function ColorPicker({ color, onChange }) {
-  const [isOpen, setIsOpen] = useState(false);
-  const popoverRef = useRef();
+  const[isOpen, setIsOpen] = useState(false);
+  const [hexInput, setHexInput] = useState(color);
 
-  // Закрытие при клике вне компонента
   useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (popoverRef.current && !popoverRef.current.contains(event.target)) {
-        setIsOpen(false);
-      }
-    };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
+    setHexInput(color);
+  }, [color]);
+
+  const handleHexInput = (e) => {
+    let val = e.target.value;
+
+    // Автоподставляем # если его нет
+    if (val && !val.startsWith('#')) {
+      val = '#' + val;
+    }
+  
+    setHexInput(val);
+  
+    if (/^#[0-9A-Fa-f]{6}$/.test(val)) {
+      onChange(val);
+    }
+  };
+
+  const { refs, floatingStyles, context } = useFloating({
+    open: isOpen,
+    onOpenChange: setIsOpen,
+    placement: 'bottom-end',
+    whileElementsMounted: autoUpdate, 
+    middleware:[
+      offset(10), 
+      flip(),
+      shift({ padding: 10 }),
+    ],
+  });
+
+  const click = useClick(context);
+  const dismiss = useDismiss(context);
+  const role = useRole(context);
+
+  const { getReferenceProps, getFloatingProps } = useInteractions([
+    click,
+    dismiss,
+    role,
+  ]);
 
   return (
-    <div className="color-picker-wrapper" style={{ position: 'relative' }} ref={popoverRef}>
-      
-      {/* Круглый триггер (Кнопка) */}
-      <div 
+    <>
+      <div
+        ref={refs.setReference}
+        {...getReferenceProps()}
         className="color-picker-trigger"
         style={{ backgroundColor: color }}
-        onClick={() => setIsOpen(!isOpen)}
       />
-
-      {/* Попап с выбором цвета */}
       {isOpen && (
-        <div className="color-picker-popover">
-          <div className="picker-label">Filter by Color</div>
-          
-          {/* Инпут HEX кода */}
-          <Input 
-            value={color} 
-            onChange={(e) => onChange(e.target.value)} 
-            placeholder="#HEX..."
-          />
-          
-          {/* Сам пикер из библиотеки */}
-          <HexColorPicker color={color} onChange={onChange} />
-        </div>
+        <FloatingFocusManager context={context} modal={false} initialFocus={-1}>
+          <div ref={refs.setFloating} style={floatingStyles} {...getFloatingProps()} className="color-picker-popover">
+            <div className="picker-label">Filter by Color</div>
+            
+            <Input 
+              value={hexInput}
+              onChange={handleHexInput} 
+              placeholder="#HEX..."
+            />
+            
+            <HexColorPicker color={color} onChange={onChange} />
+          </div>
+        </FloatingFocusManager>
       )}
-    </div>
+    </>
   );
 }

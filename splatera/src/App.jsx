@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { listen } from '@tauri-apps/api/event';
 import { invoke } from '@tauri-apps/api/core';
 import { convertFileSrc } from '@tauri-apps/api/core';
@@ -9,60 +9,101 @@ import Header from './components/header';
 import Card from './components/card';
 import Notification from './components/notification';
 
+// Хелпер для маппинга асета из Rust в объект для React
+const mapAsset = (assetInfo) => ({
+  id: assetInfo.id,
+  name: assetInfo.metadata.file_name,
+  path: assetInfo.original_path,
+  preview: assetInfo.preview_path ? convertFileSrc(assetInfo.preview_path) : '',
+  tags: assetInfo.tags,
+  kind: assetInfo.kind,
+  width: assetInfo.width,
+  height: assetInfo.height,
+  created_at: assetInfo.created_at,
+  last_modified_os: assetInfo.metadata.last_modified_os,
+  dominant_colors: assetInfo.dominant_colors ?? [],
+});
+
 function App() {
   const [images, setImages] = useState([]);
   const [isDragging, setIsDragging] = useState(false);
   const [isScrolling, setIsScrolling] = useState(false);
   const [notif, setNotif] = useState({ show: false, title: '', desc: '', progress: null });
-  
-  // ДОБАВЛЕНО: Состояние для текущего фильтра (тега)
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedTags, setSelectedTags] = useState([]);
   const [activeFilter, setActiveFilter] = useState(null);
+  const [sortOrder, setSortOrder] = useState('date_desc');
+  const [pickerColor, setPickerColor] = useState('#FFD16D');
+  const [selectedColor, setSelectedColor] = useState(null);
+  const [dateFilter, setDateFilter] = useState('');
 
-  const notifTimeout = useRef(null); 
+  const notifTimeout = useRef(null);
   const scrollTimeout = useRef(null);
 
   const showTemporaryNotif = (title, desc) => {
     if (notifTimeout.current) clearTimeout(notifTimeout.current);
-    
     setNotif({ show: true, title, desc, progress: null });
-    
     notifTimeout.current = setTimeout(() => {
       setNotif(prev => ({ ...prev, show: false }));
     }, 3000);
   };
 
-  // ДОБАВЛЕНО: Функция загрузки сохраненной библиотеки из Rust
+  const processFiles = async (filePaths) => {
+    const total = filePaths.length;
+    let processed = 0;
+
+    setNotif({ show: true, title: 'Processing Assets', desc: `Preparing 0 of ${total}...`, progress: 0 });
+
+    const newImages = [];
+
+    for (const path of filePaths) {
+      try {
+        const assetInfo = await invoke('process_asset', { path });
+        newImages.push(mapAsset(assetInfo));
+        processed++;
+        setNotif(prev => ({
+          ...prev,
+          desc: `Preparing ${processed} of ${total}...`,
+          progress: (processed / total) * 100,
+        }));
+      } catch (error) {
+        console.error("Error processing file:", path, error);
+      }
+    }
+
+    if (newImages.length > 0) {
+      setImages(prev => {
+        const existingPaths = new Set(prev.map(img => img.path));
+        return [...prev, ...newImages.filter(img => !existingPaths.has(img.path))];
+      });
+    }
+
+    showTemporaryNotif('Process Complete', `Successfully imported ${processed} files.`);
+  };
+
   const loadLibrary = async (tag) => {
     try {
       setImages([]);
       const assets = await invoke('get_library', { filterTag: tag });
-      
-      // Преобразуем структуры Rust в формат для фронтенда
-      const loadedImages = assets.map(assetInfo => ({
-        id: assetInfo.id,
-        name: assetInfo.metadata.file_name,
-        path: assetInfo.original_path,
-        preview: assetInfo.preview_path ? convertFileSrc(assetInfo.preview_path) : '', 
-        tags: assetInfo.tags,
-        kind: assetInfo.kind,
-        width: assetInfo.width,
-        height: assetInfo.height
-      }));
-
-      setImages(loadedImages);
+      setImages(assets.map(mapAsset));
     } catch (error) {
       console.error("Ошибка при загрузке библиотеки:", error);
     }
   };
 
-  // ДОБАВЛЕНО: Загружаем базу при старте и каждый раз, когда меняется activeFilter
   useEffect(() => {
     loadLibrary(activeFilter);
+
+    const handleReload = () => {
+      loadLibrary(activeFilter);
+      showTemporaryNotif('Database Optimized', 'Library reloaded successfully.');
+    };
+
+    window.addEventListener('reload-library', handleReload);
+    return () => window.removeEventListener('reload-library', handleReload);
   }, [activeFilter]);
 
   useEffect(() => {
-    console.log("App loaded. Listening to Tauri events...");
-
     const preventDefault = (e) => e.preventDefault();
     window.addEventListener('dragover', preventDefault);
     window.addEventListener('drop', preventDefault);
@@ -79,119 +120,140 @@ function App() {
     const unlistenDropPromise = listen('tauri://drag-drop', async (event) => {
       setIsDragging(false);
       const filePaths = event.payload.paths;
-      if (!filePaths || filePaths.length === 0) return;
+      if (!filePaths?.length) return;
 
       const validExtensions = ['.png', '.jpg', '.jpeg', '.gif', '.webp', '.bmp'];
-      const newlyProcessedImages = [];
-      
-      const totalToProcess = filePaths.length;
-      let processedCount = 0;
+      const filtered = filePaths.filter(p =>
+        validExtensions.includes(p.slice(p.lastIndexOf('.')).toLowerCase())
+      );
 
-      setNotif({ 
-        show: true, 
-        title: 'Processing Assets', 
-        desc: `Preparing 0 of ${totalToProcess}...`, 
-        progress: 0 
-      });
-
-      for (const path of filePaths) {
-        const ext = path.slice(path.lastIndexOf('.')).toLowerCase();
-        
-        if (validExtensions.includes(ext)) {
-          try {
-            const assetInfo = await invoke('process_asset', { path });
-            const previewUrl = assetInfo.preview_path 
-              ? convertFileSrc(assetInfo.preview_path) 
-              : ''; 
-
-            newlyProcessedImages.push({
-              id: assetInfo.id,
-              // ИЗМЕНЕНО: Теперь мы не парсим путь слэшами, а берем готовое имя из бэкенда
-              name: assetInfo.metadata.file_name, 
-              path: assetInfo.original_path,
-              preview: previewUrl, 
-              tags: assetInfo.tags,
-              kind: assetInfo.kind,
-              width: assetInfo.width,
-              height: assetInfo.height
-            });
-
-            processedCount++;
-            setNotif(prev => ({
-              ...prev,
-              desc: `Preparing ${processedCount} of ${totalToProcess}...`,
-              progress: (processedCount / totalToProcess) * 100
-            }));
-
-          } catch (error) {
-            console.error("Error processing file:", path, error);
-          }
-        }
-      }
-
-      if (newlyProcessedImages.length > 0) {
-        setImages(prev => {
-          const existingPaths = new Set(prev.map(img => img.path));
-          const uniqueNewImages = newlyProcessedImages.filter(img => !existingPaths.has(img.path));
-          return [...prev, ...uniqueNewImages];
-        });
-      }
-
-      showTemporaryNotif('Process Complete', `Successfully imported ${processedCount} files.`);
+      if (filtered.length > 0) await processFiles(filtered);
     });
+
+    const handleImportFiles = async (e) => {
+      const { filePaths } = e.detail;
+      if (filePaths?.length) await processFiles(filePaths);
+    };
+
+    window.addEventListener('import-files', handleImportFiles);
 
     return () => {
       window.removeEventListener('dragover', preventDefault);
       window.removeEventListener('drop', preventDefault);
       window.removeEventListener('show-notification', handleGlobalNotif);
-      
-      unlistenDragEnterPromise.then(unlisten => unlisten());
-      unlistenDragLeavePromise.then(unlisten => unlisten());
-      unlistenDropPromise.then(unlisten => unlisten());
+      window.removeEventListener('import-files', handleImportFiles);
+
+      unlistenDragEnterPromise.then(u => u());
+      unlistenDragLeavePromise.then(u => u());
+      unlistenDropPromise.then(u => u());
     };
-  }, []); // Пустой массив зависимостей для D&D - это правильно!
+  }, []);
+
+  const colorDistance = (hex1, hex2) => {
+    const parse = h => [
+      parseInt(h.slice(1, 3), 16),
+      parseInt(h.slice(3, 5), 16),
+      parseInt(h.slice(5, 7), 16),
+    ];
+    const [r1, g1, b1] = parse(hex1);
+    const [r2, g2, b2] = parse(hex2);
+    return Math.sqrt((r1 - r2) ** 2 + (g1 - g2) ** 2 + (b1 - b2) ** 2);
+  };
+
+  const displayedImages = useMemo(() => {
+    return images
+      .filter(img => img && typeof img === 'object' && img.id)
+      .filter(img => {
+        const matchesQuery = !searchQuery ||
+          img.name?.toLowerCase().includes(searchQuery.trim().toLowerCase()) ||
+          img.tags?.some(tag => tag.toLowerCase().includes(searchQuery.trim().toLowerCase()));
+
+        const matchesTags = !selectedTags?.length ||
+          selectedTags.every(selected =>
+            img.tags?.some(tag => tag.toLowerCase() === selected.toLowerCase())
+          );
+
+        const matchesColors = !selectedColor ||
+          img.dominant_colors.some(imgColor =>
+            colorDistance(selectedColor, imgColor) < 30
+          );
+
+        const matchesDate = !dateFilter || (() => {
+          const date = new Date(img.last_modified_os * 1000);
+          const day = String(date.getDate()).padStart(2, '0');
+          const month = String(date.getMonth() + 1).padStart(2, '0');
+          const year = date.getFullYear();
+          return `${day}.${month}.${year}`.includes(dateFilter);
+        })();
+
+        return matchesQuery && matchesTags && matchesColors && matchesDate;
+      })
+      .sort((a, b) => {
+        switch (sortOrder) {
+          case 'name_asc':  return a.name.localeCompare(b.name);
+          case 'name_desc': return b.name.localeCompare(a.name);
+          case 'date_desc': return b.created_at - a.created_at;
+          case 'date_asc':  return a.created_at - b.created_at;
+          default: return 0;
+        }
+      });
+  }, [images, searchQuery, selectedTags, selectedColor, dateFilter, sortOrder]);
 
   const handleScroll = () => {
     if (!isScrolling) setIsScrolling(true);
+    if (scrollTimeout.current) clearTimeout(scrollTimeout.current);
+    scrollTimeout.current = setTimeout(() => setIsScrolling(false), 150);
+  };
 
-    if (scrollTimeout.current) {
-      clearTimeout(scrollTimeout.current);
-    }
-
-    scrollTimeout.current = setTimeout(() => {
-      setIsScrolling(false);
-    }, 150); 
+  const handlePickerChange = (color) => {
+    setPickerColor(color);
+    setSelectedColor(color);
   };
 
   return (
-    <div 
+    <div
       className={`app-container ${isDragging ? 'dragging' : ''} ${isScrolling ? 'is-scrolling' : ''}`}
       onScroll={handleScroll}
     >
-      {/* ДОБАВЛЕНО: Передаем состояние фильтра в Header */}
-      <Header activeFilter={activeFilter} setActiveFilter={setActiveFilter} />
-
-      <Notification 
-        isVisible={notif.show} 
-        title={notif.title} 
-        description={notif.desc} 
-        progress={notif.progress} 
+      <Header
+        selectedColor={selectedColor}
+        clearColor={() => setSelectedColor(null)}
+        activeFilter={activeFilter}
+        setActiveFilter={setActiveFilter}
+        sortOrder={sortOrder}
+        setSortOrder={setSortOrder}
+        searchQuery={searchQuery}
+        setSearchQuery={setSearchQuery}
+        selectedTags={selectedTags}
+        setSelectedTags={setSelectedTags}
+        pickerColor={pickerColor}
+        setPickerColor={handlePickerChange}
+        dateFilter={dateFilter}
+        setDateFilter={setDateFilter}
       />
-      
+
+      <Notification
+        isVisible={notif.show}
+        title={notif.title}
+        description={notif.desc}
+        progress={notif.progress}
+      />
+
       <div className="content-container">
-        {images.length === 0 ? (
+        {displayedImages.length === 0 ? (
           <div className="empty-state">
             <h2>Drop to stash</h2>
             <p>Перетащи сюда картинки</p>
           </div>
         ) : (
           <Masonry
-            itemKey={(data) => data.id}
-            items={images}          
-            render={Card}           
-            columnGutter={20}       
-            columnWidth={350}       
-            overscanBy={3}          
+            key={searchQuery + selectedTags.join(',') + (selectedColor ?? '') + sortOrder + dateFilter}
+            itemKey={(data, index) => data?.id ?? `fallback-${index}`}
+            items={displayedImages}
+            render={Card}
+            columnGutter={15}
+            columnWidth={350}
+            overscanBy={3}
           />
         )}
       </div>

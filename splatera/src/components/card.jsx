@@ -3,7 +3,9 @@ import CardPopup from './cardPopup';
 import './card.css';
 
 export default function Card({ data }) {
-  
+
+  if (!data || !data.id) return null;
+    
   const handleCopy = async () => {
     try {
       await invoke('copy_image_to_clipboard', { path: data.path });

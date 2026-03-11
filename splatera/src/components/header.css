@@ -96,7 +96,6 @@
     display: block; 
   }
 
-  /* Первая строка: Логотип и Кнопки окна */
   .header-logo {
     grid-column: 1 / 2;
     grid-row: 1 / 2;
@@ -107,7 +106,6 @@
     grid-row: 1 / 2;
   }
 
-  /* Вторая строка: Поиск и инструменты */
   .header-main-controls {
     grid-column: 1 / 4;
     grid-row: 2 / 3;
@@ -118,13 +116,14 @@
     max-width: none; 
   }
 
-  /* Скрываем текст на кнопке "Import", оставляя только иконку */
   .import-text,
-  .action-text, {
+  .action-text {
     display: none;
   }
 
   .splatera-btn.with-text span {
+    width: 35px;
+    height: 35px;
     display: none;
   }
 }

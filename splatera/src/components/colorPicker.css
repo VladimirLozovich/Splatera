@@ -13,9 +13,6 @@
   
   /* Попап с пикером */
   .color-picker-popover {
-    position: absolute;
-    top: 50px; /* Чуть ниже триггера */
-    right: 0;
     z-index: 100;
     
     background-color: var(--color-bg);

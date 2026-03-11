@@ -1,39 +1,96 @@
 .splatera-input-wrapper {
-    position: relative;
-    display: flex;
-    align-items: center;
-    width: 100%;
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
   }
   
   .splatera-input {
-    width: 100%;
-    background-color: var(--color-surface);
-    border: 1px solid var(--color-border);
-    border-radius: 8px; /* Скругление 8px, как на макете */
-    padding: 10px 12px;
-    color: var(--color-text-main);
-    
-    /* Моноширинный шрифт для ввода кода/поиска */
-    font-family: 'JetBrains Mono', monospace; 
-    font-size: 14px;
-    outline: none;
-    transition: all 0.2s ease;
+  width: 100%;
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 8px; /* Скругление 8px, как на макете */
+  padding: 10px 12px;
+  color: var(--color-text-main);
+  
+  /* Моноширинный шрифт для ввода кода/поиска */
+  font-family: 'JetBrains Mono', monospace; 
+  font-size: 14px;
+  outline: none;
+  transition: all 0.2s ease;
+  
   }
   
   .splatera-input::placeholder {
-    color: var(--color-text-button);
-    opacity: 0.7;
+  color: var(--color-text-button);
+  opacity: 0.7;
   }
   
   .splatera-input:focus {
-    border-color: var(--color-accent); /* Желтая обводка при фокусе */
-    box-shadow: 0 0 0 2px rgba(255, 209, 109, 0.1);
+  border-color: var(--color-accent); /* Желтая обводка при фокусе */
+  box-shadow: 0 0 0 2px rgba(255, 209, 109, 0.1);
   }
   
   /* Иконка справа (лупа) */
   .input-icon {
+  position: absolute;
+  right: 12px;
+  color: var(--color-text-button);
+  pointer-events: none;
+  }
+
+  .search-tags-container {
     position: absolute;
-    right: 12px;
+    left: 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    pointer-events: auto; /* Чтобы клики по крестикам/цветам срабатывали */
+    z-index: 1; /* Держим поверх инпута */
+  }
+  
+  /* Квадратик цвета */
+  .input-tag-color {
+    width: 16px;
+    height: 16px;
+    border-radius: 4px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    cursor: pointer;
+    transition: transform 0.1s ease, border-color 0.1s ease;
+  }
+  
+  .input-tag-color:hover {
+    transform: scale(1.1);
+    border-color: var(--color-accent);
+  }
+  
+  /* Всплывашка с текстом */
+  .input-tag-text {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    background-color: var(--color-border); /* Или сделай rgba() от accent */
+    padding: 2px 8px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-family: 'JetBrains Mono', monospace; /* В тон инпуту */
+    color: var(--color-text-main);
+  }
+  
+  .input-tag-text button {
+    background: none;
+    border: none;
     color: var(--color-text-button);
-    pointer-events: none;
+    font-size: 14px;
+    line-height: 1;
+    padding: 0;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: color 0.2s ease;
+  }
+  
+  .input-tag-text button:hover {
+    color: var(--color-accent);
   }
