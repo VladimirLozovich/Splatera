@@ -1,0 +1,78 @@
+.filter-popover {
+    z-index: 100;
+    background-color: var(--color-bg); /* Берем твой фон */
+    border: 1px solid var(--color-border);
+    border-radius: 12px;
+    padding: 16px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.25); /* Твоя тень */
+    
+    display: flex;
+    flex-direction: column;
+    gap: 16px; 
+    width: 200px; 
+  }
+  
+  .filter-section-title {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    margin-left: 5px; /* Твой отступ */
+    color: var(--color-text-secondary); /* Твой цвет */
+    margin-bottom: 8px;
+  }
+  
+  /* --- Скроллируемая строка тегов --- */
+  .filter-tags-row {
+    display: flex;
+    gap: 6px;
+    overflow-x: auto; 
+    padding-bottom: 4px;
+    
+    /* Скрываем системный скроллбар, но оставляем скролл мышью/тачпадом */
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .filter-tags-row::-webkit-scrollbar {
+    display: none;
+  }
+  
+  /* --- Строка с инпутом цвета и кружком --- */
+  .filter-color-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 12px;
+  }
+  
+  /* Твой кружок из colorPicker.css */
+  .filter-color-circle {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    border: 1px solid var(--color-border);
+    flex-shrink: 0;
+    transition: border-color 0.1s;
+  }
+  
+  /* --- ТВОИ стили для react-colorful внутри фильтра --- */
+  .filter-popover .react-colorful {
+    width: 100% !important;
+    height: 150px !important;
+  }
+  
+  .filter-popover .react-colorful__saturation {
+    border-radius: 8px !important;
+    margin-bottom: 10px;
+    border: 1px solid var(--color-border) !important;
+  }
+  
+  .filter-popover .react-colorful__hue {
+    border-radius: 8px !important;
+    height: 16px !important;
+    border: 1px solid var(--color-border) !important;
+  }
+  
+  .filter-popover .react-colorful__pointer {
+    width: 16px !important;
+    height: 16px !important;
+    border: 2px solid var(--color-border) !important;
+  }
