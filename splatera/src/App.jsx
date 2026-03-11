@@ -34,6 +34,7 @@ function App() {
   // ДОБАВЛЕНО: Функция загрузки сохраненной библиотеки из Rust
   const loadLibrary = async (tag) => {
     try {
+      setImages([]);
       const assets = await invoke('get_library', { filterTag: tag });
       
       // Преобразуем структуры Rust в формат для фронтенда
@@ -185,6 +186,7 @@ function App() {
           </div>
         ) : (
           <Masonry
+            itemKey={(data) => data.id}
             items={images}          
             render={Card}           
             columnGutter={20}       
