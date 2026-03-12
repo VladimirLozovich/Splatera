@@ -77,13 +77,15 @@
   .suggested-tags {
     display: none;
   }
-  .splatera-btn.with-text span {
-    display: inline;
+  .action-buttons .splatera-btn.with-text span {
+    width: 35px;
+    height: 35px;
+    display: none;
   }
 }
 
 /* 2. Компактный режим */
-@media (max-width: 900px) {
+@media (max-width: 825px) {
   .splatera-header {
     display: grid;
     grid-template-columns: auto 1fr auto;
@@ -121,7 +123,7 @@
     display: none;
   }
 
-  .splatera-btn.with-text span {
+  .action-buttons .splatera-btn.with-text span {
     width: 35px;
     height: 35px;
     display: none;
