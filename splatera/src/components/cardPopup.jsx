@@ -1,9 +1,13 @@
 import { Copy, Maximize } from 'lucide-react';
-import Button from './Button';
-import Label from './Label';
+import Button from './button';
+import Label from './label';
 import './CardPopup.css';
 
 export default function CardPopup({ title, dateText, tags =[], onCopy, onMaximize }) {
+
+  const visibleTags = tags.slice(0, 2);
+  const hiddenTagsCount = tags.length - 2;
+
   return (
     <div className="splatera-card-popup">
       
@@ -16,9 +20,13 @@ export default function CardPopup({ title, dateText, tags =[], onCopy, onMaximiz
       {/* Правая часть: Управление */}
       <div className="popup-actions">
         
-        {tags.map((tag, index) => (
+        {visibleTags.map((tag, index) => (
           <Label key={index} text={tag} isActive={true} /> 
         ))}
+
+        {hiddenTagsCount > 0 && (
+          <Label text={`+${hiddenTagsCount}`} isActive={true} />
+        )}
 
         <Button icon={Copy} onClick={onCopy} />
         <Button icon={Maximize} onClick={onMaximize} />

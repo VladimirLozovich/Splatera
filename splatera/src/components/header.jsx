@@ -4,8 +4,8 @@ import { FolderSearch, Import, Minimize2, Maximize, CircleX } from 'lucide-react
 import Logo from './Logo';
 import Input from './Input';
 import ColorPicker from './ColorPicker';
-import Button from './Button';
-import Label from './Label';
+import Button from './button';
+import Label from './label';
 import './header.css';
 import SettingsMenu from './settingsMenu';
 import FilterMenu from './filterMenu';

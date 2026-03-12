@@ -5,7 +5,7 @@ import './card.css';
 export default function Card({ data }) {
 
   if (!data || !data.id) return null;
-    
+
   const handleCopy = async () => {
     try {
       await invoke('copy_image_to_clipboard', { path: data.path });
@@ -26,6 +26,7 @@ export default function Card({ data }) {
   };
 
   const ext = data.name.split('.').pop().toUpperCase();
+  const displayName = data.name.replace(/\.[^/.]+$/, "");
 
   const cardAspectRatio = data.width && data.height 
     ? `${data.width} / ${data.height}` 
@@ -45,11 +46,14 @@ export default function Card({ data }) {
       
       <div className="popup-wrapper">
         <CardPopup 
-          title={data.name} 
+          title={displayName}
           dateText="Saved just now" 
           tags={[ext, 'Image']} 
           onCopy={handleCopy}
-          onMaximize={() => console.log('Фулскрин для:', data.name)}
+          
+          onMaximize={() => {
+            window.dispatchEvent(new CustomEvent('open-lightbox', { detail: data }));
+          }}
         />
       </div>
     </div>
