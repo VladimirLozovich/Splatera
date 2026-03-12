@@ -353,6 +353,63 @@ async fn copy_image_to_clipboard(path: String) -> Result<(), String> {
     Ok(())
 }
 
+#[tauri::command]
+async fn delete_asset(id: String) -> Result<(), String> {
+    let config = get_config();
+    let mut assets = read_db(&config)?;
+    
+    if let Some(index) = assets.iter().position(|a| a.id == id) {
+        let asset = &assets[index];
+        if let Some(preview) = &asset.preview_path {
+            let _ = fs::remove_file(preview);
+        }
+        assets.remove(index);
+        write_db(&assets, &config)?;
+        Ok(())
+    } else {
+        Err("Asset not found".to_string())
+    }
+}
+
+#[tauri::command]
+async fn rename_asset(id: String, new_name: String) -> Result<(), String> {
+    let config = get_config();
+    let mut assets = read_db(&config)?;
+    
+    if let Some(asset) = assets.iter_mut().find(|a| a.id == id) {
+        asset.metadata.file_name = new_name;
+        write_db(&assets, &config)?;
+        Ok(())
+    } else {
+        Err("Asset not found".to_string())
+    }
+}
+
+#[tauri::command]
+async fn open_in_folder(path: String) -> Result<(), String> {
+    #[cfg(target_os = "windows")]
+    {
+        use std::process::Command;
+        Command::new("explorer")
+            .arg("/select,")
+            .arg(path)
+            .spawn()
+            .map_err(|e| e.to_string())?;
+    }
+    
+    #[cfg(target_os = "macos")]
+    {
+        use std::process::Command;
+        Command::new("open")
+            .arg("-R")
+            .arg(path)
+            .spawn()
+            .map_err(|e| e.to_string())?;
+    }
+
+    Ok(())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -366,7 +423,10 @@ pub fn run() {
             get_library,
             recalculate_db,
             recalculate_colors,
-            get_top_tags
+            get_top_tags,
+            delete_asset,
+            rename_asset,
+            open_in_folder
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

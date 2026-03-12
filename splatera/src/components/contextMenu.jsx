@@ -1,0 +1,68 @@
+import { useLayoutEffect } from 'react';
+import {
+  useFloating,
+  autoUpdate,
+  flip,
+  shift,
+  offset,
+  useDismiss,
+  useInteractions,
+  FloatingPortal,
+} from '@floating-ui/react';
+import { Copy, Trash2, Edit3, ExternalLink } from 'lucide-react';
+import './ContextMenu.css';
+
+export default function ContextMenu({ isOpen, setIsOpen, x, y, onAction }) {
+  const { refs, floatingStyles, context } = useFloating({
+    open: isOpen,
+    onOpenChange: setIsOpen,
+    middleware: [offset(5), flip(), shift()],
+    whileElementsMounted: autoUpdate,
+  });
+
+  useLayoutEffect(() => {
+    if (isOpen) {
+      refs.setPositionReference({
+        getBoundingClientRect: () => ({
+          width: 0,
+          height: 0,
+          x,
+          y,
+          top: y,
+          left: x,
+          right: x,
+          bottom: y,
+        }),
+      });
+    }
+  }, [isOpen, x, y, refs]);
+
+  const dismiss = useDismiss(context);
+  const { getFloatingProps } = useInteractions([dismiss]);
+
+  if (!isOpen) return null;
+
+  return (
+    <FloatingPortal>
+      <div
+        ref={refs.setFloating}
+        style={floatingStyles}
+        {...getFloatingProps()}
+        className="context-menu"
+      >
+        <div className="context-menu-item" onClick={() => onAction('copy')}>
+          <Copy size={14} /> Copy Image
+        </div>
+        <div className="context-menu-item" onClick={() => onAction('open_folder')}>
+          <ExternalLink size={14} /> Show in Folder
+        </div>
+        <div className="context-menu-item" onClick={() => onAction('rename')}>
+          <Edit3 size={14} /> Rename
+        </div>
+        <div className="context-menu-item danger" onClick={() => onAction('delete')}>
+          <Trash2 size={14} /> Delete from Library
+        </div>
+      </div>
+    </FloatingPortal>
+  );
+}
