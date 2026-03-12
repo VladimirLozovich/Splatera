@@ -8,6 +8,19 @@ import './App.css';
 import Header from './components/header';
 import Card from './components/card';
 import Notification from './components/notification';
+import Lightbox from './components/lightbox';
+
+const formatTag = (tag) => {
+  if (!tag) return '';
+  // Известные короткие аббревиатуры делаем КАПСОМ
+  const upperCaseTags = ['png', 'jpg', 'jpeg', 'gif', 'svg', 'webp', 'bmp', 'txt', 'md', 'json', 'html', 'css', 'js'];
+  
+  if (upperCaseTags.includes(tag.toLowerCase())) {
+    return tag.toUpperCase();
+  }
+  // Остальные слова просто с заглавной буквы (image -> Image, reference -> Reference)
+  return tag.charAt(0).toUpperCase() + tag.slice(1).toLowerCase();
+};
 
 // Хелпер для маппинга асета из Rust в объект для React
 const mapAsset = (assetInfo) => ({
@@ -15,7 +28,7 @@ const mapAsset = (assetInfo) => ({
   name: assetInfo.metadata.file_name,
   path: assetInfo.original_path,
   preview: assetInfo.preview_path ? convertFileSrc(assetInfo.preview_path) : '',
-  tags: assetInfo.tags,
+  tags: (assetInfo.tags || []).map(formatTag),
   kind: assetInfo.kind,
   width: assetInfo.width,
   height: assetInfo.height,
@@ -36,6 +49,7 @@ function App() {
   const [pickerColor, setPickerColor] = useState('#FFD16D');
   const [selectedColor, setSelectedColor] = useState(null);
   const [dateFilter, setDateFilter] = useState('');
+  const [selectedFile, setSelectedFile] = useState(null);
 
   const notifTimeout = useRef(null);
   const scrollTimeout = useRef(null);
@@ -104,6 +118,18 @@ function App() {
   }, [activeFilter]);
 
   useEffect(() => {
+    const handleOpen = (e) => {
+      console.log("Событие поймано в App!", e.detail);
+      setSelectedFile(e.detail);
+    };
+    
+    window.addEventListener('open-lightbox', handleOpen);
+    
+    // Обязательно отписываемся при закрытии
+    return () => window.removeEventListener('open-lightbox', handleOpen);
+  }, []);
+
+  useEffect(() => {
     const preventDefault = (e) => e.preventDefault();
     window.addEventListener('dragover', preventDefault);
     window.addEventListener('drop', preventDefault);
@@ -113,6 +139,8 @@ function App() {
       showTemporaryNotif(title, desc);
     };
     window.addEventListener('show-notification', handleGlobalNotif);
+
+    
 
     const unlistenDragEnterPromise = listen('tauri://drag-enter', () => setIsDragging(true));
     const unlistenDragLeavePromise = listen('tauri://drag-leave', () => setIsDragging(false));
@@ -148,6 +176,8 @@ function App() {
       unlistenDropPromise.then(u => u());
     };
   }, []);
+
+
 
   const colorDistance = (hex1, hex2) => {
     const parse = h => [
@@ -257,7 +287,13 @@ function App() {
           />
         )}
       </div>
-    </div>
+      {selectedFile && (
+      <Lightbox 
+        file={selectedFile} 
+        onClose={() => setSelectedFile(null)} 
+      />
+    )}
+  </div>
   );
 }
 
