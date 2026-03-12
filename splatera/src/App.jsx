@@ -4,11 +4,15 @@ import { invoke } from '@tauri-apps/api/core';
 import { convertFileSrc } from '@tauri-apps/api/core';
 import { Masonry } from 'masonic';
 
+import { Import } from 'lucide-react';
+
 import './App.css';
 import Header from './components/header';
 import Card from './components/card';
 import Notification from './components/notification';
 import Lightbox from './components/lightbox';
+import InputModal from './components/inputModal';
+import DropOverlay from './components/dropOverlay';
 
 const formatTag = (tag) => {
   if (!tag) return '';
@@ -50,6 +54,7 @@ function App() {
   const [selectedColor, setSelectedColor] = useState(null);
   const [dateFilter, setDateFilter] = useState('');
   const [selectedFile, setSelectedFile] = useState(null);
+  const [renameData, setRenameData] = useState(null);
 
   const notifTimeout = useRef(null);
   const scrollTimeout = useRef(null);
@@ -116,6 +121,20 @@ function App() {
     window.addEventListener('reload-library', handleReload);
     return () => window.removeEventListener('reload-library', handleReload);
   }, [activeFilter]);
+
+  useEffect(() => {
+    const handleRename = (e) => setRenameData(e.detail);
+    window.addEventListener('open-rename-modal', handleRename);
+    return () => window.removeEventListener('open-rename-modal', handleRename);
+  }, []);
+
+  const confirmRename = async (newName) => {
+    if (newName && newName !== renameData.name) {
+      await invoke('rename_asset', { id: renameData.id, newName });
+      loadLibrary(activeFilter); // Обновляем библиотеку
+    }
+    setRenameData(null);
+  };
 
   useEffect(() => {
     const handleOpen = (e) => {
@@ -287,6 +306,24 @@ function App() {
           />
         )}
       </div>
+      {renameData && (
+        <InputModal 
+          title="Enter new display name:"
+          defaultValue={renameData.name}
+          onConfirm={confirmRename}
+          onCancel={() => setRenameData(null)}
+        />
+      )}
+
+      {isDragging && (
+        <div className="drop-overlay">
+          <div className="drop-box">
+            <Import className="drop-icon" />
+            <div className="drop-title">Drop off your stuff here.</div>
+            <div className="drop-subtitle">Magic shall clear the rest</div>
+          </div>
+        </div>
+      )}
       {selectedFile && (
       <Lightbox 
         file={selectedFile} 

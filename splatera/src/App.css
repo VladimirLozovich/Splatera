@@ -73,11 +73,6 @@ body, html {
   border: 1px dashed transparent;
 }
 
-.app-container.dragging {
-  border: 1px dashed #FFD16D;
-  background-color: #1a1a1a;
-}
-
 .content-container {
   padding: 0 20px 20px 20px;
 }
