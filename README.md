@@ -7,7 +7,6 @@
 
 <img src="assets/ui/interface_mockup.webp" align = "center">
 
-<p align = "right"> *Прототип Интерфейса </p>
 </div>
 
 ## Что это такое
