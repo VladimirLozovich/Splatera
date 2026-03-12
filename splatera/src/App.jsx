@@ -77,8 +77,8 @@ function App() {
 
     for (const path of filePaths) {
       try {
-        const assetInfo = await invoke('process_asset', { path });
-        newImages.push(mapAsset(assetInfo));
+        const assets = await invoke('process_asset', { path });
+        assets.forEach(assetInfo => newImages.push(mapAsset(assetInfo)));
         processed++;
         setNotif(prev => ({
           ...prev,
@@ -168,13 +168,8 @@ function App() {
       setIsDragging(false);
       const filePaths = event.payload.paths;
       if (!filePaths?.length) return;
-
-      const validExtensions = ['.png', '.jpg', '.jpeg', '.gif', '.webp', '.bmp'];
-      const filtered = filePaths.filter(p =>
-        validExtensions.includes(p.slice(p.lastIndexOf('.')).toLowerCase())
-      );
-
-      if (filtered.length > 0) await processFiles(filtered);
+      // Rust сам разберётся с папками и нераспознанными расширениями
+      await processFiles(filePaths);
     });
 
     const handleImportFiles = async (e) => {

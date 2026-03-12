@@ -1,5 +1,4 @@
 use arboard::{Clipboard, ImageData};
-use image::GenericImageView;
 use image::io::Reader as ImageReader;
 use std::borrow::Cow;
 use serde::{Deserialize, Serialize};
@@ -10,6 +9,7 @@ use uuid::Uuid;
 use image::imageops::FilterType;
 use color_thief::{get_palette, ColorFormat};
 use std::collections::HashMap;
+use walkdir::WalkDir;
 
 // ==========================================
 // 1. СТРУКТУРЫ ДАННЫХ
@@ -28,7 +28,6 @@ impl AssetKind {
         }
     }
 
-    // Все расширения, которые относятся к картинкам — для фильтра "images"
     fn image_extensions() -> &'static [&'static str] {
         &["png", "jpg", "jpeg", "webp", "bmp", "gif"]
     }
@@ -95,12 +94,6 @@ fn write_db(assets: &[Asset], config: &AppConfig) -> Result<(), String> {
     fs::write(db_path, json).map_err(|e| e.to_string())
 }
 
-fn save_asset_to_db(asset: &Asset, config: &AppConfig) -> Result<(), String> {
-    let mut assets = read_db(config)?;
-    assets.push(asset.clone());
-    write_db(&assets, config)
-}
-
 // ==========================================
 // 3. ОБРАБОТКА ФАЙЛОВ И ИЗОБРАЖЕНИЙ
 // ==========================================
@@ -124,90 +117,124 @@ fn extract_metadata(path: &Path) -> Result<FileMetadata, String> {
 // 4. КОМАНДЫ TAURI (API)
 // ==========================================
 
-#[tauri::command]
-async fn process_asset(path: String) -> Result<Asset, String> {
-    let result = tokio::task::spawn_blocking(move || -> Result<Asset, String> {
-        let config = get_config();
-        let original_path = Path::new(&path);
+fn process_single_path(path: &Path, config: &AppConfig) -> Result<Asset, String> {
+    let metadata = extract_metadata(path)?;
+    let asset_id = Uuid::new_v4().to_string();
 
-        let metadata = extract_metadata(original_path)?;
-        let asset_id = Uuid::new_v4().to_string();
+    let mut preview_path = None;
+    let mut kind = AssetKind::Unknown;
+    let mut width = 0;
+    let mut height = 0;
+    let mut dominant_colors = Vec::new();
+    let mut tags = vec![];
 
-        let mut preview_path = None;
-        let mut kind = AssetKind::Unknown;
-        let mut width = 0;
-        let mut height = 0;
-        let mut dominant_colors = Vec::new();
-        let mut tags = vec![];
+    if !metadata.extension.is_empty() {
+        let ext_lower = metadata.extension.to_lowercase();
+        tags.push(ext_lower.clone());
 
-        if !metadata.extension.is_empty() {
-            let ext_lower = metadata.extension.to_lowercase();
-            tags.push(ext_lower.clone());
+        match ext_lower.as_str() {
+            "png" | "jpg" | "jpeg" | "webp" | "bmp" => {
+                kind = AssetKind::Image;
+                if let Ok(img) = image::open(path) {
+                    width = img.width();
+                    height = img.height();
 
-            match ext_lower.as_str() {
-                "png" | "jpg" | "jpeg" | "webp" | "bmp" => {
-                    kind = AssetKind::Image;
+                    let color_sample = img.resize(256, 256, FilterType::Nearest);
+                    if let Ok(palette) = get_palette(
+                        color_sample.into_rgb8().as_raw(),
+                        ColorFormat::Rgb,
+                        5,
+                        5,
+                    ) {
+                        dominant_colors = palette
+                            .into_iter()
+                            .map(|c| format!("#{:02X}{:02X}{:02X}", c.r, c.g, c.b))
+                            .collect();
+                    }
 
-                    if let Ok(img) = image::open(original_path) {
-                        width = img.width();
-                        height = img.height();
+                    let thumbnail = img.resize(
+                        config.thumbnail_size,
+                        config.thumbnail_size,
+                        FilterType::Triangle,
+                    );
+                    let thumb_filepath = Path::new(&config.library_path)
+                        .join("thumbnails")
+                        .join(format!("{}.jpg", asset_id));
 
-                        // Цвета
-                        let color_sample = img.resize(256, 256, FilterType::Nearest);
-                        if let Ok(palette) = get_palette(
-                            color_sample.into_rgb8().as_raw(),
-                            ColorFormat::Rgb,
-                            5,
-                            5,
-                        ) {
-                            dominant_colors = palette
-                                .into_iter()
-                                .map(|c| format!("#{:02X}{:02X}{:02X}", c.r, c.g, c.b))
-                                .collect();
-                        }
-
-                        // Превью
-                        let thumbnail = img.resize(
-                            config.thumbnail_size,
-                            config.thumbnail_size,
-                            FilterType::Triangle,
-                        );
-                        let thumb_filepath = Path::new(&config.library_path)
-                            .join("thumbnails")
-                            .join(format!("{}.jpg", asset_id));
-
-                        if thumbnail.into_rgb8().save(&thumb_filepath).is_ok() {
-                            preview_path = Some(thumb_filepath.to_string_lossy().into_owned());
-                        }
+                    if thumbnail.into_rgb8().save(&thumb_filepath).is_ok() {
+                        preview_path = Some(thumb_filepath.to_string_lossy().into_owned());
                     }
                 }
-                "txt" | "md" => kind = AssetKind::Text,
-                "js" | "py" | "rs" | "css" | "html" => kind = AssetKind::Code,
-                _ => (),
+            }
+            "txt" | "md" => kind = AssetKind::Text,
+            "js" | "py" | "rs" | "css" | "html" => kind = AssetKind::Code,
+            _ => (),
+        }
+    }
+
+    tags.extend(kind.default_tags());
+
+    Ok(Asset {
+        id: asset_id,
+        original_path: path.to_string_lossy().into_owned(),
+        preview_path,
+        kind,
+        dominant_colors,
+        tags,
+        metadata,
+        width,
+        height,
+        created_at: SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_secs(),
+    })
+}
+
+#[tauri::command]
+async fn process_asset(path: String) -> Result<Vec<Asset>, String> {
+    let result = tokio::task::spawn_blocking(move || -> Result<Vec<Asset>, String> {
+        let config = get_config();
+        let root_path = Path::new(&path);
+        let mut new_assets = Vec::new();
+
+        let mut target_paths = Vec::new();
+        if root_path.is_dir() {
+            for entry in WalkDir::new(root_path).into_iter().filter_map(|e| e.ok()) {
+                if entry.file_type().is_file() {
+                    target_paths.push(entry.path().to_path_buf());
+                }
+            }
+        } else {
+            target_paths.push(root_path.to_path_buf());
+        }
+
+        for p in target_paths {
+            if let Some(ext) = p.extension() {
+                let ext_str = ext.to_string_lossy().to_lowercase();
+                if !["png", "jpg", "jpeg", "webp", "bmp", "gif", "txt", "md", "js", "py", "rs", "css", "html"]
+                    .contains(&ext_str.as_str()) {
+                    continue;
+                }
+            } else { continue; }
+
+            if let Ok(asset) = process_single_path(&p, &config) {
+                new_assets.push(asset);
             }
         }
 
-        // Добавляем дефолтные теги из enum — одно место для всех типов
-        tags.extend(kind.default_tags());
-
-        let asset = Asset {
-            id: asset_id,
-            original_path: path,
-            preview_path,
-            kind,
-            dominant_colors,
-            tags,
-            metadata,
-            width,
-            height,
-            created_at: SystemTime::now()
-                .duration_since(UNIX_EPOCH)
-                .unwrap_or_default()
-                .as_secs(),
-        };
-
-        save_asset_to_db(&asset, &config)?;
-        Ok(asset)
+        let mut all_assets = read_db(&config)?;
+        let existing_paths: std::collections::HashSet<String> =
+            all_assets.iter().map(|a| a.original_path.clone()).collect();
+        
+        let unique_new: Vec<Asset> = new_assets
+            .into_iter()
+            .filter(|a| !existing_paths.contains(&a.original_path))
+            .collect();
+        
+        if !unique_new.is_empty() {
+            all_assets.extend(unique_new.clone());
+            write_db(&all_assets, &config)?;
+        }
+        
+        Ok(unique_new)
     })
     .await;
 

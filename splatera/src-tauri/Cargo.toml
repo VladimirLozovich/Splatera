@@ -30,3 +30,4 @@ image = "0.24"
 uuid = { version = "1.8", features = ["v4", "fast-rng"] }
 tokio = "1.50.0"
 color-thief = "0.2.2"
+walkdir = "2.4"

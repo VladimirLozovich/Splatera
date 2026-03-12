@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { FolderSearch, Import, Minimize2, Maximize, CircleX } from 'lucide-react';
 import Logo from './Logo';
-import Input from './Input';
+import Input from './input';
 import ColorPicker from './ColorPicker';
 import Button from './button';
 import Label from './label';
@@ -36,10 +36,8 @@ export default function Header({
   const handleImport = async () => {
     const selected = await open({
       multiple: true,
-      filters: [{
-        name: 'Images',
-        extensions: ['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp']
-      }]
+      directory: false, // или true для папок
+      filters: [{ name: 'Images', extensions: ['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp'] }]
     });
   
     if (!selected) return; // пользователь закрыл диалог
