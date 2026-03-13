@@ -97,18 +97,27 @@ export default function Card({ data }) {
     ? `${data.width} / ${data.height}` 
     : '1 / 1';
 
+  const isCodeOrText = data.kind === 'Code' || data.kind === 'Text';
+
   return (
     <div 
       className="splatera-card" 
       style={{ aspectRatio: cardAspectRatio }} 
       onContextMenu={handleContextMenu}
     >
-      <img 
-        src={data.preview} 
-        alt={data.name} 
-        loading="lazy"      
-        decoding="async"    
-      />
+      {/* Рендерим либо код, либо картинку */}
+      {isCodeOrText ? (
+        <div className="code-preview-container">
+          <pre><code>{data.contentSnippet || "No preview available"}</code></pre>
+        </div>
+      ) : (
+        <img 
+          src={data.preview} 
+          alt={data.name} 
+          loading="lazy"      
+          decoding="async"    
+        />
+      )}
       
       <div className="popup-wrapper">
         <CardPopup 

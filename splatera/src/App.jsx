@@ -39,6 +39,7 @@ const mapAsset = (assetInfo) => ({
   created_at: assetInfo.created_at,
   last_modified_os: assetInfo.metadata.last_modified_os,
   dominant_colors: assetInfo.dominant_colors ?? [],
+  contentSnippet: assetInfo.content_snippet,
 });
 
 function App() {

@@ -53,6 +53,7 @@ pub struct Asset {
     width: u32,
     height: u32,
     created_at: u64,
+    content_snippet: Option<String>, 
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -172,6 +173,22 @@ fn process_single_path(path: &Path, config: &AppConfig) -> Result<Asset, String>
         }
     }
 
+    // Читаем текст для кода и текстовых файлов
+    let mut content_snippet = None;
+    if kind == AssetKind::Text || kind == AssetKind::Code {
+        use std::io::Read;
+        if let Ok(mut file) = std::fs::File::open(path) {
+            let mut buffer = [0; 2048];
+            if let Ok(bytes_read) = file.read(&mut buffer) {
+                let text = String::from_utf8_lossy(&buffer[..bytes_read]);
+                let lines: Vec<&str> = text.lines().take(20).collect();
+                content_snippet = Some(lines.join("\n"));
+            }
+        }
+        width = 400;
+        height = 300;
+    }
+
     tags.extend(kind.default_tags());
 
     Ok(Asset {
@@ -185,6 +202,7 @@ fn process_single_path(path: &Path, config: &AppConfig) -> Result<Asset, String>
         width,
         height,
         created_at: SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_secs(),
+        content_snippet,
     })
 }
 
