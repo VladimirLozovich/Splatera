@@ -56,6 +56,9 @@ export default function ContextMenu({ isOpen, setIsOpen, x, y, onAction }) {
         <div className="context-menu-item" onClick={() => onAction('open_folder')}>
           <ExternalLink size={14} /> Show in Folder
         </div>
+        <div className="context-menu-item" onClick={() => onAction('add_tag')}>
+          <ExternalLink size={14} /> Add tag
+        </div>
         <div className="context-menu-item" onClick={() => onAction('rename')}>
           <Edit3 size={14} /> Rename
         </div>

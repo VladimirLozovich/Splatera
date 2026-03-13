@@ -43,6 +43,7 @@ const mapAsset = (assetInfo) => ({
 });
 
 function App() {
+  const [tagData, setTagData] = useState(null);
   const [images, setImages] = useState([]);
   const [isDragging, setIsDragging] = useState(false);
   const [isScrolling, setIsScrolling] = useState(false);
@@ -125,8 +126,14 @@ function App() {
 
   useEffect(() => {
     const handleRename = (e) => setRenameData(e.detail);
+    const handleTagModal = (e) => setTagData(e.detail);
+
     window.addEventListener('open-rename-modal', handleRename);
-    return () => window.removeEventListener('open-rename-modal', handleRename);
+    window.addEventListener('open-tag-modal', handleTagModal);
+    return () => {
+      window.removeEventListener('open-rename-modal', handleRename);
+      window.removeEventListener('open-tag-modal', handleTagModal);
+    }
   }, []);
 
   const confirmRename = async (newName) => {
@@ -135,6 +142,20 @@ function App() {
       loadLibrary(activeFilter); // Обновляем библиотеку
     }
     setRenameData(null);
+  };
+
+  const confirmTag = async (newTagsStr) => {
+    if (newTagsStr && tagData) {
+      const inputTags = newTagsStr.split(',').map(t => t.trim().toLowerCase()).filter(t => t.length > 0);
+      
+      // Объединяем старые теги и новые, убирая дубликаты
+      const allTags = [...new Set([...tagData.currentTags.map(t=>t.toLowerCase()), ...inputTags])];
+      
+      await invoke('update_asset_tags', { id: tagData.id, tags: allTags });
+      loadLibrary(activeFilter);
+      showTemporaryNotif('Tags Updated', 'Custom tags saved successfully.');
+    }
+    setTagData(null);
   };
 
   useEffect(() => {
@@ -308,6 +329,15 @@ function App() {
           defaultValue={renameData.name}
           onConfirm={confirmRename}
           onCancel={() => setRenameData(null)}
+        />
+      )}
+
+      {tagData && (
+        <InputModal 
+          title="Enter tags (comma separated):"
+          defaultValue=""
+          onConfirm={confirmTag}
+          onCancel={() => setTagData(null)}
         />
       )}
 

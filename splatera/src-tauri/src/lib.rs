@@ -399,6 +399,20 @@ async fn copy_image_to_clipboard(path: String) -> Result<(), String> {
 }
 
 #[tauri::command]
+async fn update_asset_tags(id: String, tags: Vec<String>) -> Result<(), String> {
+    let config = get_config();
+    let mut assets = read_db(&config)?;
+    
+    if let Some(asset) = assets.iter_mut().find(|a| a.id == id) {
+        asset.tags = tags;
+        write_db(&assets, &config)?;
+        Ok(())
+    } else {
+        Err("Asset not found".to_string())
+    }
+}
+
+#[tauri::command]
 async fn delete_asset(id: String) -> Result<(), String> {
     let config = get_config();
     let mut assets = read_db(&config)?;
@@ -469,6 +483,7 @@ pub fn run() {
             recalculate_db,
             recalculate_colors,
             get_top_tags,
+            update_asset_tags,
             delete_asset,
             rename_asset,
             open_in_folder

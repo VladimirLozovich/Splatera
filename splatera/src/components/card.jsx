@@ -56,6 +56,12 @@ export default function Card({ data }) {
             console.error('Failed to delete:', err);
         }
         break;
+
+        case 'add_tag':
+        window.dispatchEvent(new CustomEvent('open-tag-modal', { 
+          detail: { id: data.id, currentTags: data.tags } 
+        }));
+        break;
   
       default:
         break;
