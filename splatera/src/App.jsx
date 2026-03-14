@@ -3,7 +3,6 @@ import { listen } from '@tauri-apps/api/event';
 import { invoke } from '@tauri-apps/api/core';
 import { convertFileSrc } from '@tauri-apps/api/core';
 import { Masonry } from 'masonic';
-
 import { Import } from 'lucide-react';
 
 import './App.css';
@@ -18,17 +17,13 @@ import ImportModal from './components/importModal';
 
 const formatTag = (tag) => {
   if (!tag) return '';
-  // Известные короткие аббревиатуры делаем КАПСОМ
   const upperCaseTags = ['png', 'jpg', 'jpeg', 'gif', 'svg', 'webp', 'bmp', 'txt', 'md', 'json', 'html', 'css', 'js'];
-  
   if (upperCaseTags.includes(tag.toLowerCase())) {
     return tag.toUpperCase();
   }
-  // Остальные слова просто с заглавной буквы (image -> Image, reference -> Reference)
   return tag.charAt(0).toUpperCase() + tag.slice(1).toLowerCase();
 };
 
-// Хелпер для маппинга асета из Rust в объект для React
 const mapAsset = (assetInfo) => ({
   id: assetInfo.id,
   name: assetInfo.metadata.file_name,
@@ -61,6 +56,8 @@ function App() {
   const [renameData, setRenameData] = useState(null);
   const [pendingImport, setPendingImport] = useState(null);
 
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
+
   const notifTimeout = useRef(null);
   const scrollTimeout = useRef(null);
 
@@ -72,10 +69,11 @@ function App() {
     }, 3000);
   };
 
+  // Единая логика импорта
   const handleConfirmImport = async (paths, customTags, batchName) => {
     setPendingImport(null);
     const totalPaths = paths.length;
-    let totalAssetsProcessed = 0; // Глобальный счетчик для всех найденных файлов
+    let totalAssetsProcessed = 0;
   
     setNotif({ show: true, title: 'Processing Assets', desc: `Preparing...`, progress: 0 });
   
@@ -95,7 +93,6 @@ function App() {
           if (batchName.trim()) {
             const needsNumber = totalPaths > 1 || assets.length > 1;
             const finalName = needsNumber ? `${batchName}_${totalAssetsProcessed}` : batchName;
-            
             await invoke('rename_asset', { id: assetInfo.id, newName: finalName });
           }
         }
@@ -110,43 +107,11 @@ function App() {
       }
     }
   
-    loadLibrary(activeFilter);
+    setRefreshTrigger(prev => prev + 1); // Перезагружаем библиотеку
     showTemporaryNotif('Process Complete', `Successfully imported ${totalAssetsProcessed} files.`);
   };
 
-  const processFiles = async (filePaths) => {
-    const total = filePaths.length;
-    let processed = 0;
-
-    setNotif({ show: true, title: 'Processing Assets', desc: `Preparing 0 of ${total}...`, progress: 0 });
-
-    const newImages = [];
-
-    for (const path of filePaths) {
-      try {
-        const assets = await invoke('process_asset', { path });
-        assets.forEach(assetInfo => newImages.push(mapAsset(assetInfo)));
-        processed++;
-        setNotif(prev => ({
-          ...prev,
-          desc: `Preparing ${processed} of ${total}...`,
-          progress: (processed / total) * 100,
-        }));
-      } catch (error) {
-        console.error("Error processing file:", path, error);
-      }
-    }
-
-    if (newImages.length > 0) {
-      setImages(prev => {
-        const existingPaths = new Set(prev.map(img => img.path));
-        return [...prev, ...newImages.filter(img => !existingPaths.has(img.path))];
-      });
-    }
-
-    showTemporaryNotif('Process Complete', `Successfully imported ${processed} files.`);
-  };
-
+  // Единая точка загрузки библиотеки из Rust
   const loadLibrary = async (tag) => {
     try {
       setImages([]);
@@ -157,35 +122,16 @@ function App() {
     }
   };
 
+  // Перезагрузка при старте, смене фильтра или принудительном триггере
   useEffect(() => {
     loadLibrary(activeFilter);
-
-    const handleReload = () => {
-      loadLibrary(activeFilter);
-      showTemporaryNotif('Database Optimized', 'Library reloaded successfully.');
-    };
-
-    window.addEventListener('reload-library', handleReload);
-    return () => window.removeEventListener('reload-library', handleReload);
-  }, [activeFilter]);
-
-  useEffect(() => {
-    const handleRename = (e) => setRenameData(e.detail);
-    const handleTagModal = (e) => setTagData(e.detail);
-
-    window.addEventListener('open-rename-modal', handleRename);
-    window.addEventListener('open-tag-modal', handleTagModal);
-    return () => {
-      window.removeEventListener('open-rename-modal', handleRename);
-      window.removeEventListener('open-tag-modal', handleTagModal);
-    }
-  }, []);
+  }, [activeFilter, refreshTrigger]);
 
   const confirmRename = async (newName) => {
     if (newName && newName !== renameData.name) {
       try {
         await invoke('rename_asset', { id: renameData.id, newName: newName });
-        loadLibrary(activeFilter); 
+        setRefreshTrigger(prev => prev + 1); 
       } catch (err) {
         console.error("Rename failed:", err);
       }
@@ -196,61 +142,66 @@ function App() {
   const handleSaveTags = async (assetId, updatedTags) => {
     try {
       await invoke('update_asset_tags', { id: assetId, tags: updatedTags });
-      loadLibrary(activeFilter);
+      setRefreshTrigger(prev => prev + 1);
       showTemporaryNotif('Tags Updated', 'Tags saved successfully.');
     } catch (err) {
       console.error('Failed to update tags:', err);
       showTemporaryNotif('Error', 'Failed to save tags.');
     }
-    setTagData(null); // Закрываем окно
+    setTagData(null);
   };
 
+  // ГЛОБАЛЬНЫЕ СЛУШАТЕЛИ СОБЫТИЙ
   useEffect(() => {
-    const handleOpen = (e) => {
-      console.log("Событие поймано в App!", e.detail);
-      setSelectedFile(e.detail);
-    };
-    
-    window.addEventListener('open-lightbox', handleOpen);
-    
-    // Обязательно отписываемся при закрытии
-    return () => window.removeEventListener('open-lightbox', handleOpen);
-  }, []);
+    console.log("App mounted. Registering listeners...");
 
-  useEffect(() => {
     const preventDefault = (e) => e.preventDefault();
     window.addEventListener('dragover', preventDefault);
     window.addEventListener('drop', preventDefault);
 
-    const handleGlobalNotif = (e) => {
-      const { title, desc } = e.detail;
-      showTemporaryNotif(title, desc);
+    // Функции-обработчики кастомных событий окна
+    const handleReload = () => {
+      setRefreshTrigger(prev => prev + 1);
+      showTemporaryNotif('Database Optimized', 'Library reloaded successfully.');
     };
-    window.addEventListener('show-notification', handleGlobalNotif);
-
+    const handleRenameModal = (e) => setRenameData(e.detail);
+    const handleTagModal = (e) => setTagData(e.detail);
+    const handleOpenLightbox = (e) => setSelectedFile(e.detail);
+    const handleGlobalNotif = (e) => showTemporaryNotif(e.detail.title, e.detail.desc);
     
+    // Cлушатель импорта из кнопки
+    const handleImportFiles = (e) => {
+      const { filePaths } = e.detail;
+      if (filePaths?.length) {
+        setPendingImport(filePaths);
+      }
+    };
 
+    window.addEventListener('reload-library', handleReload);
+    window.addEventListener('open-rename-modal', handleRenameModal);
+    window.addEventListener('open-tag-modal', handleTagModal);
+    window.addEventListener('open-lightbox', handleOpenLightbox);
+    window.addEventListener('show-notification', handleGlobalNotif);
+    window.addEventListener('import-files', handleImportFiles);
+
+    // Tauri D&D Events
     const unlistenDragEnterPromise = listen('tauri://drag-enter', () => setIsDragging(true));
     const unlistenDragLeavePromise = listen('tauri://drag-leave', () => setIsDragging(false));
-
-    const unlistenDropPromise = listen('tauri://drag-drop', async (event) => {
+    const unlistenDropPromise = listen('tauri://drag-drop', (event) => {
       setIsDragging(false);
       const filePaths = event.payload.paths;
-      if (!filePaths?.length) return;
-      // Rust сам разберётся с папками и нераспознанными расширениями
-      setPendingImport(filePaths);    
+      if (filePaths?.length) {
+        setPendingImport(filePaths);
+      }
     });
-
-    const handleImportFiles = async (e) => {
-      const { filePaths } = e.detail;
-      if (filePaths?.length) await processFiles(filePaths);
-    };
-
-    window.addEventListener('import-files', handleImportFiles);
 
     return () => {
       window.removeEventListener('dragover', preventDefault);
       window.removeEventListener('drop', preventDefault);
+      window.removeEventListener('reload-library', handleReload);
+      window.removeEventListener('open-rename-modal', handleRenameModal);
+      window.removeEventListener('open-tag-modal', handleTagModal);
+      window.removeEventListener('open-lightbox', handleOpenLightbox);
       window.removeEventListener('show-notification', handleGlobalNotif);
       window.removeEventListener('import-files', handleImportFiles);
 
@@ -259,7 +210,6 @@ function App() {
       unlistenDropPromise.then(u => u());
     };
   }, []);
-
 
 
   const colorDistance = (hex1, hex2) => {
@@ -370,6 +320,7 @@ function App() {
           />
         )}
       </div>
+
       {renameData && (
         <InputModal 
           title="Enter new display name:"
@@ -387,20 +338,10 @@ function App() {
         />
       )}
 
-      {isDragging && (
-        <div className="drop-overlay">
-          <div className="drop-box">
-            <Import className="drop-icon" />
-            <div className="drop-title">Drop off your stuff here.</div>
-            <div className="drop-subtitle">Magic shall clear the rest</div>
-          </div>
-        </div>
-      )}
-      {selectedFile && (
-      <Lightbox 
-        file={selectedFile} 
-        onClose={() => setSelectedFile(null)} 
-      />)}
+      {isDragging && <DropOverlay />}
+      
+      {selectedFile && <Lightbox file={selectedFile} onClose={() => setSelectedFile(null)} />}
+      
       {pendingImport && (
         <ImportModal 
           paths={pendingImport} 
@@ -408,8 +349,7 @@ function App() {
           onClose={() => setPendingImport(null)} 
         />
       )}
-    )
-  </div>
+    </div>
   );
 }
 
