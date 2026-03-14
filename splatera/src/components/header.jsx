@@ -37,7 +37,24 @@ export default function Header({
     const selected = await open({
       multiple: true,
       directory: false, // или true для папок
-      filters: [{ name: 'Images', extensions: ['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp'] }]
+      filters: [
+        { 
+          name: 'All Supported Assets', 
+          extensions: ['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'txt', 'md', 'js', 'py', 'rs', 'css', 'html'] 
+        },
+        { 
+          name: 'Images', 
+          extensions: ['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp'] 
+        },
+        { 
+          name: 'Text & Code', 
+          extensions: ['txt', 'md', 'js', 'py', 'rs', 'css', 'html'] 
+        },
+        { 
+          name: 'All Files', 
+          extensions: ['*'] 
+        }
+      ]
     });
   
     if (!selected) return; // пользователь закрыл диалог
