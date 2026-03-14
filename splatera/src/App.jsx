@@ -13,7 +13,7 @@ import Notification from './components/notification';
 import Lightbox from './components/lightbox';
 import InputModal from './components/inputModal';
 import DropOverlay from './components/dropOverlay';
-import TagManager from './components/tagManager'; // <--- НОВОЕ
+import TagManager from './components/tagManager';
 
 const formatTag = (tag) => {
   if (!tag) return '';

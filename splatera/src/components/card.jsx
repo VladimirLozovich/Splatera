@@ -70,7 +70,7 @@ export default function Card({ data }) {
 
         case 'add_tag':
         window.dispatchEvent(new CustomEvent('open-tag-modal', { 
-          detail: { id: data.id, currentTags: data.tags } 
+          detail: data 
         }));
         break;
   
@@ -134,8 +134,8 @@ export default function Card({ data }) {
               background: 'transparent', 
               fontSize: '11px',
               overflow: 'hidden',
-              userSelect: 'none',     /* ЗАПРЕЩАЕМ ВЫДЕЛЕНИЕ ТЕКСТА */
-              pointerEvents: 'none'   /* ПРОПУСКАЕМ КЛИКИ НА КАРТОЧКУ (чинит Drag&Drop) */
+              userSelect: 'none',
+              pointerEvents: 'none'
             }}
             wrapLongLines={true}
           >
@@ -162,16 +162,14 @@ export default function Card({ data }) {
             window.dispatchEvent(new CustomEvent('open-lightbox', { detail: data }));
           }}
 
-          // ДОБАВЛЯЕМ ЭТО: Открываем модалку тегов по клику на область тегов
           onManageTags={() => {
             window.dispatchEvent(new CustomEvent('open-tag-modal', { 
-              detail: { id: data.id, currentTags: data.tags } 
+              detail: data
             }));
           }}
         />
         <ContextMenu 
           isOpen={menuData.open}
-          // Передаем функцию, которая меняет только флаг open
           setIsOpen={(val) => setMenuData(prev => ({ ...prev, open: val }))}
           x={menuData.x}
           y={menuData.y}
