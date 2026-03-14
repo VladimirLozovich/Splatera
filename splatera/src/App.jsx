@@ -288,7 +288,7 @@ function App() {
 
         const matchesColors = !selectedColor ||
           img.dominant_colors.some(imgColor =>
-            colorDistance(selectedColor, imgColor) < 30
+            colorDistance(selectedColor, imgColor) < 60
           );
 
         const matchesDate = !dateFilter || (() => {
@@ -373,7 +373,7 @@ function App() {
       {renameData && (
         <InputModal 
           title="Enter new display name:"
-          defaultValue={renameData.name}
+          data={renameData}
           onConfirm={confirmRename}
           onCancel={() => setRenameData(null)}
         />

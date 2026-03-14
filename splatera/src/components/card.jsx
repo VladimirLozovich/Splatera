@@ -47,7 +47,7 @@ export default function Card({ data }) {
   
       case 'rename':
         window.dispatchEvent(new CustomEvent('open-rename-modal', { 
-          detail: { id: data.id, name: data.name } 
+          detail: data
         }));
         break;
   
