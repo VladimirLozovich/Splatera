@@ -3,16 +3,13 @@ import { X, Plus } from 'lucide-react';
 import './tagManager.css';
 
 export default function TagManager({ data, onSave, onClose }) {
-  // Локальный стейт тегов (чтобы видеть изменения до сохранения)
   const [tags, setTags] = useState(data.currentTags || []);
   const [inputValue, setInputValue] = useState('');
 
-  // Удаление тега из локального списка
   const handleRemoveTag = (tagToRemove) => {
     setTags(tags.filter(t => t !== tagToRemove));
   };
 
-  // Добавление новых тегов (поддерживает ввод через запятую)
   const handleAddTags = () => {
     if (!inputValue.trim()) return;
     
@@ -21,7 +18,6 @@ export default function TagManager({ data, onSave, onClose }) {
       .map(t => t.trim().toLowerCase())
       .filter(t => t.length > 0);
 
-    // Добавляем только уникальные
     const uniqueTags = [...new Set([...tags, ...newTags])];
     setTags(uniqueTags);
     setInputValue('');
@@ -36,11 +32,10 @@ export default function TagManager({ data, onSave, onClose }) {
 
   return (
     <div className="modal-overlay" onMouseDown={onClose}>
-      <div className="tag-manager-modal" onMouseDown={(e) => e.stopPropagation()}>
+      <div className="modal-content" onMouseDown={(e) => e.stopPropagation()}>
         
-        <div className="tag-manager-header">
-          <h3>Manage Tags</h3>
-          <button className="icon-btn" onClick={onClose}><X size={18} /></button>
+        <div className="modal-header">
+          manage tags:
         </div>
 
         <div className="tags-container">
@@ -58,7 +53,7 @@ export default function TagManager({ data, onSave, onClose }) {
         <div className="tag-input-group">
           <input 
             type="text" 
-            placeholder="Add new tags (comma separated)..." 
+            placeholder="new tags (comma separated)..." 
             value={inputValue}
             onChange={(e) => setInputValue(e.target.value)}
             onKeyDown={handleKeyDown}
@@ -69,9 +64,10 @@ export default function TagManager({ data, onSave, onClose }) {
         </div>
 
         <div className="modal-actions">
-          <button className="btn-cancel" onClick={onClose}>Cancel</button>
-          <button className="btn-save" onClick={() => onSave(data.id, tags)}>Save Changes</button>
+          <button className="modal-btn" onClick={onClose}>Cancel</button>
+          <button className="modal-btn confirm" onClick={() => onSave(data.id, tags)}>Confirm</button>
         </div>
+
       </div>
     </div>
   );
