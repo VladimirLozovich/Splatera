@@ -13,6 +13,7 @@ import Notification from './components/notification';
 import Lightbox from './components/lightbox';
 import InputModal from './components/inputModal';
 import DropOverlay from './components/dropOverlay';
+import TagManager from './components/tagManager'; // <--- НОВОЕ
 
 const formatTag = (tag) => {
   if (!tag) return '';
@@ -144,18 +145,16 @@ function App() {
     setRenameData(null);
   };
 
-  const confirmTag = async (newTagsStr) => {
-    if (newTagsStr && tagData) {
-      const inputTags = newTagsStr.split(',').map(t => t.trim().toLowerCase()).filter(t => t.length > 0);
-      
-      // Объединяем старые теги и новые, убирая дубликаты
-      const allTags = [...new Set([...tagData.currentTags.map(t=>t.toLowerCase()), ...inputTags])];
-      
-      await invoke('update_asset_tags', { id: tagData.id, tags: allTags });
+  const handleSaveTags = async (assetId, updatedTags) => {
+    try {
+      await invoke('update_asset_tags', { id: assetId, tags: updatedTags });
       loadLibrary(activeFilter);
-      showTemporaryNotif('Tags Updated', 'Custom tags saved successfully.');
+      showTemporaryNotif('Tags Updated', 'Tags saved successfully.');
+    } catch (err) {
+      console.error('Failed to update tags:', err);
+      showTemporaryNotif('Error', 'Failed to save tags.');
     }
-    setTagData(null);
+    setTagData(null); // Закрываем окно
   };
 
   useEffect(() => {
@@ -333,11 +332,10 @@ function App() {
       )}
 
       {tagData && (
-        <InputModal 
-          title="Enter tags (comma separated):"
-          defaultValue=""
-          onConfirm={confirmTag}
-          onCancel={() => setTagData(null)}
+        <TagManager
+          data={tagData}
+          onSave={handleSaveTags}
+          onClose={() => setTagData(null)}
         />
       )}
 

@@ -162,6 +162,13 @@ export default function Card({ data }) {
           onMaximize={() => {
             window.dispatchEvent(new CustomEvent('open-lightbox', { detail: data }));
           }}
+
+          // ДОБАВЛЯЕМ ЭТО: Открываем модалку тегов по клику на область тегов
+          onManageTags={() => {
+            window.dispatchEvent(new CustomEvent('open-tag-modal', { 
+              detail: { id: data.id, currentTags: data.tags } 
+            }));
+          }}
         />
         <ContextMenu 
           isOpen={menuData.open}
