@@ -1,8 +1,19 @@
+import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
+import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import { useState } from 'react'; 
 import { invoke } from '@tauri-apps/api/core';
 import CardPopup from './cardPopup';
 import ContextMenu from './contextMenu'; 
 import './card.css';
+
+const getLanguage = (ext) => {
+  if (!ext) return 'text';
+  const map = { 
+    js: 'javascript', py: 'python', rs: 'rust', 
+    html: 'html', css: 'css', json: 'json', md: 'markdown' 
+  };
+  return map[ext.toLowerCase()] || 'text';
+};
 
 export default function Card({ data }) {
   const [menuData, setMenuData] = useState({ open: false, x: 0, y: 0 });
@@ -56,6 +67,12 @@ export default function Card({ data }) {
             console.error('Failed to delete:', err);
         }
         break;
+
+        case 'add_tag':
+        window.dispatchEvent(new CustomEvent('open-tag-modal', { 
+          detail: { id: data.id, currentTags: data.tags } 
+        }));
+        break;
   
       default:
         break;
@@ -97,18 +114,42 @@ export default function Card({ data }) {
     ? `${data.width} / ${data.height}` 
     : '1 / 1';
 
+  const isCodeOrText = data.kind === 'Code' || data.kind === 'Text';
+
   return (
     <div 
       className="splatera-card" 
       style={{ aspectRatio: cardAspectRatio }} 
       onContextMenu={handleContextMenu}
     >
-      <img 
-        src={data.preview} 
-        alt={data.name} 
-        loading="lazy"      
-        decoding="async"    
-      />
+      {/* Рендерим либо код, либо картинку */}
+      {isCodeOrText ? (
+        <div className="code-preview-container">
+          <SyntaxHighlighter
+            language={getLanguage(ext)}
+            style={vscDarkPlus}
+            customStyle={{ 
+              margin: 0, 
+              padding: 0, 
+              background: 'transparent', 
+              fontSize: '11px',
+              overflow: 'hidden',
+              userSelect: 'none',     /* ЗАПРЕЩАЕМ ВЫДЕЛЕНИЕ ТЕКСТА */
+              pointerEvents: 'none'   /* ПРОПУСКАЕМ КЛИКИ НА КАРТОЧКУ (чинит Drag&Drop) */
+            }}
+            wrapLongLines={true}
+          >
+            {data.contentSnippet || "No preview available"}
+          </SyntaxHighlighter>
+        </div>
+      ) : (
+        <img 
+          src={data.preview} 
+          alt={data.name} 
+          loading="lazy"      
+          decoding="async"    
+        />
+      )}
       
       <div className="popup-wrapper">
         <CardPopup 
@@ -119,6 +160,13 @@ export default function Card({ data }) {
           
           onMaximize={() => {
             window.dispatchEvent(new CustomEvent('open-lightbox', { detail: data }));
+          }}
+
+          // ДОБАВЛЯЕМ ЭТО: Открываем модалку тегов по клику на область тегов
+          onManageTags={() => {
+            window.dispatchEvent(new CustomEvent('open-tag-modal', { 
+              detail: { id: data.id, currentTags: data.tags } 
+            }));
           }}
         />
         <ContextMenu 

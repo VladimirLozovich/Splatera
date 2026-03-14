@@ -53,6 +53,7 @@ pub struct Asset {
     width: u32,
     height: u32,
     created_at: u64,
+    content_snippet: Option<String>, 
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -172,6 +173,22 @@ fn process_single_path(path: &Path, config: &AppConfig) -> Result<Asset, String>
         }
     }
 
+    // Читаем текст для кода и текстовых файлов
+    let mut content_snippet = None;
+    if kind == AssetKind::Text || kind == AssetKind::Code {
+        use std::io::Read;
+        if let Ok(mut file) = std::fs::File::open(path) {
+            let mut buffer = [0; 2048];
+            if let Ok(bytes_read) = file.read(&mut buffer) {
+                let text = String::from_utf8_lossy(&buffer[..bytes_read]);
+                let lines: Vec<&str> = text.lines().take(20).collect();
+                content_snippet = Some(lines.join("\n"));
+            }
+        }
+        width = 400;
+        height = 300;
+    }
+
     tags.extend(kind.default_tags());
 
     Ok(Asset {
@@ -185,6 +202,7 @@ fn process_single_path(path: &Path, config: &AppConfig) -> Result<Asset, String>
         width,
         height,
         created_at: SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_secs(),
+        content_snippet,
     })
 }
 
@@ -381,6 +399,20 @@ async fn copy_image_to_clipboard(path: String) -> Result<(), String> {
 }
 
 #[tauri::command]
+async fn update_asset_tags(id: String, tags: Vec<String>) -> Result<(), String> {
+    let config = get_config();
+    let mut assets = read_db(&config)?;
+    
+    if let Some(asset) = assets.iter_mut().find(|a| a.id == id) {
+        asset.tags = tags;
+        write_db(&assets, &config)?;
+        Ok(())
+    } else {
+        Err("Asset not found".to_string())
+    }
+}
+
+#[tauri::command]
 async fn delete_asset(id: String) -> Result<(), String> {
     let config = get_config();
     let mut assets = read_db(&config)?;
@@ -437,6 +469,21 @@ async fn open_in_folder(path: String) -> Result<(), String> {
     Ok(())
 }
 
+#[tauri::command]
+async fn read_full_text_file(path: String) -> Result<String, String> {
+    use std::io::Read;
+    use std::fs::File;
+
+    let mut file = File::open(&path).map_err(|e| e.to_string())?;
+    // Ограничиваем чтение 2 МБ, чтобы фронтенд не завис на гигантских логах
+    let mut handle = file.take(2 * 1024 * 1024);
+    let mut buffer = Vec::new();
+    handle.read_to_end(&mut buffer).map_err(|e| e.to_string())?;
+
+    let text = String::from_utf8_lossy(&buffer).into_owned();
+    Ok(text)
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -451,9 +498,11 @@ pub fn run() {
             recalculate_db,
             recalculate_colors,
             get_top_tags,
+            update_asset_tags,
             delete_asset,
             rename_asset,
-            open_in_folder
+            open_in_folder,
+            read_full_text_file
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -13,6 +13,7 @@ import Notification from './components/notification';
 import Lightbox from './components/lightbox';
 import InputModal from './components/inputModal';
 import DropOverlay from './components/dropOverlay';
+import TagManager from './components/tagManager'; // <--- НОВОЕ
 
 const formatTag = (tag) => {
   if (!tag) return '';
@@ -39,9 +40,11 @@ const mapAsset = (assetInfo) => ({
   created_at: assetInfo.created_at,
   last_modified_os: assetInfo.metadata.last_modified_os,
   dominant_colors: assetInfo.dominant_colors ?? [],
+  contentSnippet: assetInfo.content_snippet,
 });
 
 function App() {
+  const [tagData, setTagData] = useState(null);
   const [images, setImages] = useState([]);
   const [isDragging, setIsDragging] = useState(false);
   const [isScrolling, setIsScrolling] = useState(false);
@@ -124,8 +127,14 @@ function App() {
 
   useEffect(() => {
     const handleRename = (e) => setRenameData(e.detail);
+    const handleTagModal = (e) => setTagData(e.detail);
+
     window.addEventListener('open-rename-modal', handleRename);
-    return () => window.removeEventListener('open-rename-modal', handleRename);
+    window.addEventListener('open-tag-modal', handleTagModal);
+    return () => {
+      window.removeEventListener('open-rename-modal', handleRename);
+      window.removeEventListener('open-tag-modal', handleTagModal);
+    }
   }, []);
 
   const confirmRename = async (newName) => {
@@ -134,6 +143,18 @@ function App() {
       loadLibrary(activeFilter); // Обновляем библиотеку
     }
     setRenameData(null);
+  };
+
+  const handleSaveTags = async (assetId, updatedTags) => {
+    try {
+      await invoke('update_asset_tags', { id: assetId, tags: updatedTags });
+      loadLibrary(activeFilter);
+      showTemporaryNotif('Tags Updated', 'Tags saved successfully.');
+    } catch (err) {
+      console.error('Failed to update tags:', err);
+      showTemporaryNotif('Error', 'Failed to save tags.');
+    }
+    setTagData(null); // Закрываем окно
   };
 
   useEffect(() => {
@@ -307,6 +328,14 @@ function App() {
           defaultValue={renameData.name}
           onConfirm={confirmRename}
           onCancel={() => setRenameData(null)}
+        />
+      )}
+
+      {tagData && (
+        <TagManager
+          data={tagData}
+          onSave={handleSaveTags}
+          onClose={() => setTagData(null)}
         />
       )}
 

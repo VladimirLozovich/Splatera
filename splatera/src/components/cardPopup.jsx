@@ -3,7 +3,8 @@ import Button from './button';
 import Label from './label';
 import './CardPopup.css';
 
-export default function CardPopup({ title, dateText, tags =[], onCopy, onMaximize }) {
+// ДОБАВЛЯЕМ новый пропс onManageTags
+export default function CardPopup({ title, dateText, tags =[], onCopy, onMaximize, onManageTags }) {
 
   const visibleTags = tags.slice(0, 2);
   const hiddenTagsCount = tags.length - 2;
@@ -11,22 +12,27 @@ export default function CardPopup({ title, dateText, tags =[], onCopy, onMaximiz
   return (
     <div className="splatera-card-popup">
       
-      {/* Левая часть: Информация */}
       <div className="popup-info">
         <span className="popup-title">{title}</span>
         <span className="popup-date">{dateText}</span>
       </div>
 
-      {/* Правая часть: Управление */}
       <div className="popup-actions">
         
-        {visibleTags.map((tag, index) => (
-          <Label key={index} text={tag} isActive={true} /> 
-        ))}
+        {/* Оборачиваем теги в кликабельный контейнер */}
+        <div 
+           onClick={onManageTags} 
+           style={{ display: 'flex', gap: '6px', cursor: 'pointer' }}
+           title="Click to manage tags"
+        >
+          {visibleTags.map((tag, index) => (
+            <Label key={index} text={tag} isActive={true} /> 
+          ))}
 
-        {hiddenTagsCount > 0 && (
-          <Label text={`+${hiddenTagsCount}`} isActive={true} />
-        )}
+          {hiddenTagsCount > 0 && (
+            <Label text={`+${hiddenTagsCount}`} isActive={true} />
+          )}
+        </div>
 
         <Button icon={Copy} onClick={onCopy} />
         <Button icon={Maximize} onClick={onMaximize} />

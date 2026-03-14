@@ -9,7 +9,7 @@ import {
   useInteractions,
   FloatingPortal,
 } from '@floating-ui/react';
-import { Copy, Trash2, Edit3, ExternalLink } from 'lucide-react';
+import { Copy, Trash2, Edit3, ExternalLink, Tags } from 'lucide-react';
 import './ContextMenu.css';
 
 export default function ContextMenu({ isOpen, setIsOpen, x, y, onAction }) {
@@ -55,6 +55,9 @@ export default function ContextMenu({ isOpen, setIsOpen, x, y, onAction }) {
         </div>
         <div className="context-menu-item" onClick={() => onAction('open_folder')}>
           <ExternalLink size={14} /> Show in Folder
+        </div>
+        <div className="context-menu-item" onClick={() => onAction('add_tag')}>
+          <Tags size={14} /> Manage tags
         </div>
         <div className="context-menu-item" onClick={() => onAction('rename')}>
           <Edit3 size={14} /> Rename
