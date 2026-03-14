@@ -14,6 +14,7 @@ import Lightbox from './components/lightbox';
 import InputModal from './components/inputModal';
 import DropOverlay from './components/dropOverlay';
 import TagManager from './components/tagManager';
+import ImportModal from './components/importModal';
 
 const formatTag = (tag) => {
   if (!tag) return '';
@@ -58,6 +59,7 @@ function App() {
   const [dateFilter, setDateFilter] = useState('');
   const [selectedFile, setSelectedFile] = useState(null);
   const [renameData, setRenameData] = useState(null);
+  const [pendingImport, setPendingImport] = useState(null);
 
   const notifTimeout = useRef(null);
   const scrollTimeout = useRef(null);
@@ -68,6 +70,48 @@ function App() {
     notifTimeout.current = setTimeout(() => {
       setNotif(prev => ({ ...prev, show: false }));
     }, 3000);
+  };
+
+  const handleConfirmImport = async (paths, customTags, batchName) => {
+    setPendingImport(null);
+    const totalPaths = paths.length;
+    let totalAssetsProcessed = 0; // Глобальный счетчик для всех найденных файлов
+  
+    setNotif({ show: true, title: 'Processing Assets', desc: `Preparing...`, progress: 0 });
+  
+    for (let i = 0; i < totalPaths; i++) {
+      const path = paths[i];
+      try {
+        const assets = await invoke('process_asset', { path });
+        
+        for (const assetInfo of assets) {
+          totalAssetsProcessed++;
+
+          if (customTags.length > 0) {
+            const mergedTags = [...new Set([...assetInfo.tags, ...customTags])];
+            await invoke('update_asset_tags', { id: assetInfo.id, tags: mergedTags });
+          }
+          
+          if (batchName.trim()) {
+            const needsNumber = totalPaths > 1 || assets.length > 1;
+            const finalName = needsNumber ? `${batchName}_${totalAssetsProcessed}` : batchName;
+            
+            await invoke('rename_asset', { id: assetInfo.id, newName: finalName });
+          }
+        }
+        
+        setNotif(prev => ({
+          ...prev,
+          desc: `Processed ${i + 1} of ${totalPaths} entries...`,
+          progress: ((i + 1) / totalPaths) * 100,
+        }));
+      } catch (err) {
+        console.error("Error processing path:", path, err);
+      }
+    }
+  
+    loadLibrary(activeFilter);
+    showTemporaryNotif('Process Complete', `Successfully imported ${totalAssetsProcessed} files.`);
   };
 
   const processFiles = async (filePaths) => {
@@ -139,8 +183,12 @@ function App() {
 
   const confirmRename = async (newName) => {
     if (newName && newName !== renameData.name) {
-      await invoke('rename_asset', { id: renameData.id, newName });
-      loadLibrary(activeFilter); // Обновляем библиотеку
+      try {
+        await invoke('rename_asset', { id: renameData.id, newName: newName });
+        loadLibrary(activeFilter); 
+      } catch (err) {
+        console.error("Rename failed:", err);
+      }
     }
     setRenameData(null);
   };
@@ -190,7 +238,7 @@ function App() {
       const filePaths = event.payload.paths;
       if (!filePaths?.length) return;
       // Rust сам разберётся с папками и нераспознанными расширениями
-      await processFiles(filePaths);
+      setPendingImport(filePaths);    
     });
 
     const handleImportFiles = async (e) => {
@@ -352,8 +400,15 @@ function App() {
       <Lightbox 
         file={selectedFile} 
         onClose={() => setSelectedFile(null)} 
-      />
-    )}
+      />)}
+      {pendingImport && (
+        <ImportModal 
+          paths={pendingImport} 
+          onConfirm={handleConfirmImport} 
+          onClose={() => setPendingImport(null)} 
+        />
+      )}
+    )
   </div>
   );
 }
