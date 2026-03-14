@@ -469,6 +469,21 @@ async fn open_in_folder(path: String) -> Result<(), String> {
     Ok(())
 }
 
+#[tauri::command]
+async fn read_full_text_file(path: String) -> Result<String, String> {
+    use std::io::Read;
+    use std::fs::File;
+
+    let mut file = File::open(&path).map_err(|e| e.to_string())?;
+    // Ограничиваем чтение 2 МБ, чтобы фронтенд не завис на гигантских логах
+    let mut handle = file.take(2 * 1024 * 1024);
+    let mut buffer = Vec::new();
+    handle.read_to_end(&mut buffer).map_err(|e| e.to_string())?;
+
+    let text = String::from_utf8_lossy(&buffer).into_owned();
+    Ok(text)
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -486,7 +501,8 @@ pub fn run() {
             update_asset_tags,
             delete_asset,
             rename_asset,
-            open_in_folder
+            open_in_folder,
+            read_full_text_file
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
