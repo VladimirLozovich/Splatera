@@ -14,7 +14,7 @@ import {
   FloatingFocusManager,
 } from '@floating-ui/react';
 
-import Button from './Button';
+import Button from './button';
 import './SortMenu.css';
 
 export default function SortMenu({ sortOrder, setSortOrder }) {

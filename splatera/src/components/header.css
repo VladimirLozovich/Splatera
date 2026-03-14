@@ -37,7 +37,7 @@
 
 .search-container {
   flex-grow: 1;
-  max-width: 600px; /* На десктопе поиск не будет растягиваться до бесконечности */
+  max-width: 600px;
 }
 
 .header-secondary-controls {
@@ -70,62 +70,82 @@
   margin-left: auto;
 }
 
-/* --- АДАПТИВНОСТЬ (Media Queries) --- */
+/* --- АДАПТИВНОСТЬ --- */
 
-/* 1. На средних экранах скрываем только теги, чтобы не ломать строку */
+/* Да костыль с !important, я ненавижу css */
 @media (max-width: 1200px) {
+  .sort-popover > .sort-option-btn {
+    padding: 8px 10px 8px 10px !important;
+    width: 100% !important;
+    border-radius: 9999px !important;
+  }
+
+  .sort-popover > .sort-option-btn span {
+    display: inline !important;
+  }
+
+  .settings-popover > .settings-action-btn {
+    padding: 8px 10px 8px 10px !important;
+    width: 100% !important;
+    border-radius: 9999px !important;
+  }
+
+  .settings-popover > .settings-action-btn span {
+    display: inline !important;
+  }
+
   .suggested-tags {
     display: none;
   }
-  .action-buttons .splatera-btn.with-text span {
+
+  .action-buttons > div > .splatera-btn.with-text {
     width: 35px;
     height: 35px;
+    padding: 0;
+    border-radius: 50%;
+    overflow: hidden;
+  }
+  .action-buttons > div > .splatera-btn.with-text span {
     display: none;
   }
 }
 
-/* 2. Компактный режим */
 @media (max-width: 825px) {
   .splatera-header {
     display: grid;
     grid-template-columns: auto 1fr auto;
     grid-template-rows: auto auto;
     gap: 15px;
-    padding: 15px 20px; 
+    padding: 15px 20px;
   }
-
   .header-secondary-controls {
-    display: block; 
+    display: block;
   }
-
   .header-logo {
     grid-column: 1 / 2;
     grid-row: 1 / 2;
   }
-
   .window-controls {
     grid-column: 3 / 4;
     grid-row: 1 / 2;
   }
-
   .header-main-controls {
     grid-column: 1 / 4;
     grid-row: 2 / 3;
     width: 100%;
   }
-
   .search-container {
-    max-width: none; 
+    max-width: none;
   }
 
-  .import-text,
-  .action-text {
-    display: none;
-  }
-
-  .action-buttons .splatera-btn.with-text span {
+  .import-btn {
     width: 35px;
     height: 35px;
+    padding: 0;
+    border-radius: 50%;
+    overflow: hidden;
+  }
+  .import-btn span {
     display: none;
   }
 }
