@@ -1,8 +1,19 @@
+import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
+import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import { useState } from 'react'; 
 import { invoke } from '@tauri-apps/api/core';
 import CardPopup from './cardPopup';
 import ContextMenu from './contextMenu'; 
 import './card.css';
+
+const getLanguage = (ext) => {
+  if (!ext) return 'text';
+  const map = { 
+    js: 'javascript', py: 'python', rs: 'rust', 
+    html: 'html', css: 'css', json: 'json', md: 'markdown' 
+  };
+  return map[ext.toLowerCase()] || 'text';
+};
 
 export default function Card({ data }) {
   const [menuData, setMenuData] = useState({ open: false, x: 0, y: 0 });
@@ -113,8 +124,24 @@ export default function Card({ data }) {
     >
       {/* Рендерим либо код, либо картинку */}
       {isCodeOrText ? (
-        <div className="code-preview-container">
-          <pre><code>{data.contentSnippet || "No preview available"}</code></pre>
+        <div className="code-preview-container" onClick={() => {
+          // Позволяем кликнуть по коду, чтобы открыть Lightbox
+          window.dispatchEvent(new CustomEvent('open-lightbox', { detail: data }));
+        }}>
+          <SyntaxHighlighter
+            language={getLanguage(ext)}
+            style={vscDarkPlus}
+            customStyle={{ 
+              margin: 0, 
+              padding: 0, 
+              background: 'transparent', 
+              fontSize: '11px',
+              overflow: 'hidden'
+            }}
+            wrapLongLines={true}
+          >
+            {data.contentSnippet || "No preview available"}
+          </SyntaxHighlighter>
         </div>
       ) : (
         <img 
