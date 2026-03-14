@@ -124,10 +124,7 @@ export default function Card({ data }) {
     >
       {/* Рендерим либо код, либо картинку */}
       {isCodeOrText ? (
-        <div className="code-preview-container" onClick={() => {
-          // Позволяем кликнуть по коду, чтобы открыть Lightbox
-          window.dispatchEvent(new CustomEvent('open-lightbox', { detail: data }));
-        }}>
+        <div className="code-preview-container">
           <SyntaxHighlighter
             language={getLanguage(ext)}
             style={vscDarkPlus}
@@ -136,7 +133,9 @@ export default function Card({ data }) {
               padding: 0, 
               background: 'transparent', 
               fontSize: '11px',
-              overflow: 'hidden'
+              overflow: 'hidden',
+              userSelect: 'none',     /* ЗАПРЕЩАЕМ ВЫДЕЛЕНИЕ ТЕКСТА */
+              pointerEvents: 'none'   /* ПРОПУСКАЕМ КЛИКИ НА КАРТОЧКУ (чинит Drag&Drop) */
             }}
             wrapLongLines={true}
           >
