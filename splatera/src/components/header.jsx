@@ -34,35 +34,43 @@ export default function Header({
   const appWindow = getCurrentWindow();
 
   const handleImport = async () => {
-    const selected = await open({
-      multiple: true,
-      directory: false, // или true для папок
-      filters: [
-        { 
-          name: 'All Supported Assets', 
-          extensions: ['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'txt', 'md', 'js', 'py', 'rs', 'css', 'html'] 
-        },
-        { 
-          name: 'Images', 
-          extensions: ['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp'] 
-        },
-        { 
-          name: 'Text & Code', 
-          extensions: ['txt', 'md', 'js', 'py', 'rs', 'css', 'html'] 
-        },
-        { 
-          name: 'All Files', 
-          extensions: ['*'] 
-        }
-      ]
-    });
-  
-    if (!selected) return; // пользователь закрыл диалог
-  
-    // open() возвращает строку если multiple: false, массив если multiple: true
-    const filePaths = Array.isArray(selected) ? selected : [selected];
-  
-    window.dispatchEvent(new CustomEvent('import-files', { detail: { filePaths } }));
+    try {
+      const selected = await open({
+        multiple: true,
+        directory: false,
+        filters: [
+          { 
+            name: 'All Supported Assets', 
+            extensions: ['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'txt', 'md', 'js', 'py', 'rs', 'css', 'html'] 
+          },
+          { 
+            name: 'Images', 
+            extensions: ['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp'] 
+          },
+          { 
+            name: 'Text & Code', 
+            extensions: ['txt', 'md', 'js', 'py', 'rs', 'css', 'html'] 
+          },
+          { 
+            name: 'All Files', 
+            extensions: ['*'] 
+          }
+        ]
+      });
+    
+      if (!selected) return;
+    
+      const rawPaths = Array.isArray(selected) ? selected : [selected];
+      
+      const filePaths = rawPaths.map(item => 
+        typeof item === 'object' && item !== null && item.path ? item.path : item
+      );
+    
+      window.dispatchEvent(new CustomEvent('import-files', { detail: { filePaths } }));
+      
+    } catch (error) {
+      console.error("Ошибка при вызове окна импорта:", error);
+    }
   };
 
   useEffect(() => {
@@ -142,7 +150,7 @@ export default function Header({
         <Button 
           icon={Import} 
           text={<span className="import-text">Import a new file</span>} 
-          onClick={(handleImport)} 
+          onClick={handleImport} 
           className="import-btn"
         />
       </div>
