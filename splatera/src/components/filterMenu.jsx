@@ -1,7 +1,7 @@
-import { useState, useEffect } from 'react'; // <-- Добавь useEffect
+import { useState, useEffect, useRef } from 'react';
 import { Filter } from 'lucide-react';
 import { HexColorPicker } from 'react-colorful';
-import { invoke } from '@tauri-apps/api/core'; // <-- Импорт invoke для запроса к Rust
+import { invoke } from '@tauri-apps/api/core';
 import {
   useFloating,
   autoUpdate,
@@ -29,13 +29,10 @@ export default function FilterMenu({
   setDateFilter,
 }) {
   const [isOpen, setIsOpen] = useState(false);
-  
-  // Стейты фильтров
   const [tagInput, setTagInput] = useState('');
   const [dateInput, setDateInput] = useState('');
-  
-  // Стейт для динамических тегов из базы
   const [suggestedTags, setSuggestedTags] = useState([]);
+  const tagsRowRef = useRef(null);
 
   const { refs, floatingStyles, context } = useFloating({
     open: isOpen,
@@ -75,6 +72,7 @@ export default function FilterMenu({
   ]);
 
   // Загружаем теги при каждом открытии меню (чтобы они всегда были актуальными)
+  // TODO: Нормальная сортировка (да-да)
   useEffect(() => {
     if (isOpen) {
       const loadTags = async () => {
@@ -89,12 +87,21 @@ export default function FilterMenu({
     }
   }, [isOpen]);
 
-  // Чтобы горизонтальный скролл мышкой (колесиком) работал на блоке тегов
-  const handleScroll = (e) => {
-    const container = e.currentTarget;
-    // Крутим колесико вниз -> скроллим вправо
-    container.scrollLeft += e.deltaY;
-  };
+  useEffect(() => {
+    const el = tagsRowRef.current;
+    if (!el) return;
+
+    const onWheel = (e) => {
+      if (e.deltaY !== 0) {
+        e.preventDefault();
+        e.stopPropagation();
+        el.scrollLeft += e.deltaY;
+      }
+    };
+
+    el.addEventListener('wheel', onWheel, { passive: false });
+    return () => el.removeEventListener('wheel', onWheel);
+  }, [isOpen, suggestedTags]);
 
   return (
     <>
@@ -113,7 +120,7 @@ export default function FilterMenu({
             
             <div>
               <div className="filter-section-title">Suggested tags:</div>
-              <div className="filter-tags-row" onWheel={handleScroll}>
+              <div className="filter-tags-row" ref={tagsRowRef}>
                 {suggestedTags.length > 0 ? (
                   suggestedTags.map(tag => (
                     <Label 
