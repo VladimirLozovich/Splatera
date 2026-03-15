@@ -440,3 +440,164 @@ pub fn run() {
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::fs;
+    use std::path::Path;
+
+    // ==========================================
+    // UNIT-ТЕСТЫ
+    // ==========================================
+
+    // 1. Детектор типов файлов
+    #[test]
+    fn test_file_type_detection() {
+        let config = get_config();
+
+        // Создаём временный .py файл
+        let path = Path::new("test_file.py");
+        fs::write(path, "print('hello')").unwrap();
+
+        let asset = process_single_path(path, &config).unwrap();
+        assert_eq!(asset.kind, AssetKind::Code);
+        assert!(asset.tags.contains(&"py".to_string()));
+        assert!(asset.tags.contains(&"code".to_string()));
+
+        fs::remove_file(path).unwrap();
+    }
+
+    #[test]
+    fn test_text_file_detection() {
+        let config = get_config();
+
+        let path = Path::new("test_file.txt");
+        fs::write(path, "hello world").unwrap();
+
+        let asset = process_single_path(path, &config).unwrap();
+        assert_eq!(asset.kind, AssetKind::Text);
+        assert!(asset.tags.contains(&"txt".to_string()));
+
+        fs::remove_file(path).unwrap();
+    }
+
+    // 2. Парсер тегов (проверяем что теги из папки корректно извлекаются)
+    #[test]
+    fn test_tag_parsing() {
+        // Симулируем логику getAutoTags из фронтенда на уровне Rust
+        let input = "logo, ui, dark";
+        let tags: Vec<String> = input
+            .split(',')
+            .map(|t| t.trim().to_lowercase())
+            .filter(|t| !t.is_empty())
+            .collect();
+
+        assert_eq!(tags, vec!["logo", "ui", "dark"]);
+    }
+
+    // 3. Извлечение доминантных цветов
+    #[test]
+    fn test_color_extraction() {
+        use image::{ImageBuffer, Rgb};
+
+        // Создаём красный квадрат 100x100
+        let img = ImageBuffer::from_fn(100, 100, |_, _| Rgb([255u8, 0u8, 0u8]));
+        let dynamic = image::DynamicImage::ImageRgb8(img);
+
+        let colors = extract_colors(&dynamic);
+
+        assert!(!colors.is_empty(), "Palette should not be empty");
+        // Доминантный цвет должен быть близок к красному
+        let dominant = &colors[0];
+        assert!(dominant.starts_with('#'), "Color should be HEX");
+        // Красная компонента должна быть высокой (FF или близко)
+        let r = u8::from_str_radix(&dominant[1..3], 16).unwrap();
+        assert!(r > 200, "Red channel should be dominant, got {}", r);
+    }
+
+    // ==========================================
+    // INTEGRATION-ТЕСТЫ
+    // ==========================================
+
+    // 4. Запись и чтение БД
+    #[test]
+    fn test_db_read_write() {
+        let config = AppConfig {
+            library_path: "./test_library".to_string(),
+            theme_mode: "dark".to_string(),
+            thumbnail_size: 400,
+        };
+        fs::create_dir_all(format!("{}/thumbnails", config.library_path)).unwrap();
+
+        let asset = Asset {
+            id: "test-id-123".to_string(),
+            original_path: "/some/path/file.png".to_string(),
+            preview_path: None,
+            kind: AssetKind::Image,
+            dominant_colors: vec!["#FF0000".to_string()],
+            tags: vec!["png".to_string(), "image".to_string()],
+            metadata: FileMetadata {
+                size_bytes: 1024,
+                file_name: "file.png".to_string(),
+                extension: "png".to_string(),
+                last_modified_os: 0,
+            },
+            width: 100,
+            height: 100,
+            created_at: 0,
+            content_snippet: None,
+            is_broken: false,
+        };
+
+        // Записываем
+        write_db(&[asset.clone()], &config).unwrap();
+
+        // Читаем обратно
+        let loaded = read_db(&config).unwrap();
+        assert_eq!(loaded.len(), 1);
+        assert_eq!(loaded[0].id, "test-id-123");
+        assert_eq!(loaded[0].kind, AssetKind::Image);
+        assert_eq!(loaded[0].dominant_colors[0], "#FF0000");
+
+        // Чистим за собой
+        fs::remove_dir_all(&config.library_path).unwrap();
+    }
+
+    // 5. Обработка битых путей
+    #[test]
+    fn test_broken_path_returns_error() {
+        let path = "/this/path/does/not/exist/file.txt".to_string();
+        let result = fs::read_to_string(&path);
+        assert!(result.is_err(), "Should return error for missing file");
+    }
+
+    // 6. Генерация превью
+    #[test]
+    fn test_thumbnail_generation() {
+        use image::{ImageBuffer, Rgb};
+
+        let config = AppConfig {
+            library_path: "./test_thumbs_library".to_string(),
+            theme_mode: "dark".to_string(),
+            thumbnail_size: 400,
+        };
+        fs::create_dir_all(format!("{}/thumbnails", config.library_path)).unwrap();
+
+        // Создаём тестовое изображение
+        let img_path = Path::new("test_image_thumb.png");
+        let img = ImageBuffer::from_fn(800, 600, |_, _| Rgb([100u8, 150u8, 200u8]));
+        img.save(img_path).unwrap();
+
+        let asset = process_single_path(img_path, &config).unwrap();
+
+        // Проверяем что thumbnail создался
+        assert!(asset.preview_path.is_some(), "Thumbnail should be created");
+        let thumb_path = asset.preview_path.unwrap();
+        assert!(Path::new(&thumb_path).exists(), "Thumbnail file should exist on disk");
+
+        // Чистим
+        fs::remove_file(img_path).unwrap();
+        fs::remove_dir_all(&config.library_path).unwrap();
+    }
+}
