@@ -57,6 +57,8 @@ pub struct Asset {
     height: u32,
     created_at: u64,
     content_snippet: Option<String>,
+    #[serde(default)]
+    is_broken: bool,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -185,6 +187,7 @@ fn process_single_path(path: &Path, config: &AppConfig) -> Result<Asset, String>
         height,
         created_at: SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_secs(),
         content_snippet,
+        is_broken: false,
     })
 }
 
@@ -238,6 +241,10 @@ async fn process_asset(path: String) -> Result<Vec<Asset>, String> {
 fn get_library(filter_tag: Option<String>) -> Result<Vec<Asset>, String> {
     let config = get_config();
     let mut assets = read_db(&config)?;
+
+    for asset in assets.iter_mut() {
+        asset.is_broken = !Path::new(&asset.original_path).exists();
+    }
 
     if let Some(tag) = filter_tag {
         let tag_lower = tag.to_lowercase();

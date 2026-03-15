@@ -1,3 +1,4 @@
+import { Unlink } from 'lucide-react';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import { useState } from 'react';
@@ -37,10 +38,9 @@ export default function Card({ data }) {
 
   if (!data || !data.id) return null;
 
-  // Вычисляем сразу — до всех обработчиков
-  const ext          = data.name.split('.').pop().toUpperCase();
-  const displayName  = data.name.replace(/\.[^/.]+$/, '');
-  const isCodeOrText = data.kind === 'Code' || data.kind === 'Text';
+  const ext             = data.name.split('.').pop().toUpperCase();
+  const displayName     = data.name.replace(/\.[^/.]+$/, '');
+  const isCodeOrText    = data.kind === 'Code' || data.kind === 'Text';
   const cardAspectRatio = data.width && data.height ? `${data.width} / ${data.height}` : '1 / 1';
 
   const handleDragStart = async (e) => {
@@ -120,6 +120,13 @@ export default function Card({ data }) {
       onDragStart={handleDragStart}
       onContextMenu={handleContextMenu}
     >
+      {data.isBroken && (
+        <div className="broken-overlay">
+          <Unlink size={24} />
+          <span>File missing</span>
+        </div>
+      )}
+
       {isCodeOrText ? (
         <div className="code-preview-container">
           <SyntaxHighlighter

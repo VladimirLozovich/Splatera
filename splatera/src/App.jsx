@@ -38,6 +38,7 @@ const mapAsset = (assetInfo) => ({
   dominant_colors: assetInfo.dominant_colors ?? [],
   contentSnippet: assetInfo.content_snippet,
   previewPath: assetInfo.preview_path ?? null,
+  isBroken: assetInfo.is_broken ?? false,
 });
 
 function App() {
