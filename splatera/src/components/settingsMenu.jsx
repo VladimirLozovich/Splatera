@@ -1,4 +1,3 @@
-// src/components/SettingsMenu.jsx
 import { useState } from 'react';
 import { Settings, DatabaseZap } from 'lucide-react';
 import { invoke } from '@tauri-apps/api/core';
@@ -15,7 +14,7 @@ import {
   FloatingFocusManager,
 } from '@floating-ui/react';
 import Button from './button';
-import './SettingsMenu.css';
+import './settingsMenu.css';
 
 export default function SettingsMenu({ onDbUpdated }) {
   const [isOpen, setIsOpen] = useState(false);

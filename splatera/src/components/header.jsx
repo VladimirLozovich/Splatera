@@ -3,7 +3,7 @@ import { getCurrentWindow } from '@tauri-apps/api/window';
 import { FolderSearch, Import, Minimize2, Maximize, CircleX } from 'lucide-react';
 import Logo from './Logo';
 import Input from './input';
-import ColorPicker from './ColorPicker';
+import ColorPicker from './colorPicker';
 import Button from './button';
 import Label from './label';
 import './header.css';

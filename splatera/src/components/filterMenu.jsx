@@ -18,7 +18,7 @@ import {
 import Button from './button';
 import Input from './input';
 import Label from './label';
-import './FilterMenu.css';
+import './filterMenu.css';
 
 export default function FilterMenu({ 
   pickerColor, 
