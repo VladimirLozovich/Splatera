@@ -2,6 +2,7 @@ import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import { useState } from 'react'; 
 import { invoke } from '@tauri-apps/api/core';
+import { startDrag } from '@crabnebula/tauri-plugin-drag';
 import CardPopup from './cardPopup';
 import ContextMenu from './contextMenu'; 
 import './card.css';
@@ -19,6 +20,22 @@ export default function Card({ data }) {
   const [menuData, setMenuData] = useState({ open: false, x: 0, y: 0 });
 
   if (!data || !data.id) return null;
+
+  const handleDragStart = async (e) => {
+  e.preventDefault();
+  try {
+    // Резолвим абсолютный путь для иконки
+    const rawIconPath = data.previewPath || data.path;
+    const iconPath = await invoke('resolve_path', { path: rawIconPath });
+
+    await startDrag({
+      item: [data.path],
+      icon: iconPath,       // абсолютный путь
+    });
+  } catch (err) {
+    console.error('Drag failed:', err);
+  }
+};
 
   const handleContextMenu = (e) => {
     e.preventDefault(); // Запрещаем стандартное меню Windows
@@ -121,6 +138,8 @@ export default function Card({ data }) {
       className="splatera-card" 
       style={{ aspectRatio: cardAspectRatio }} 
       onContextMenu={handleContextMenu}
+      draggable={true}          // ← добавить
+      onDragStart={handleDragStart}
     >
       {/* Рендерим либо код, либо картинку */}
       {isCodeOrText ? (

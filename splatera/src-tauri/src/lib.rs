@@ -484,9 +484,23 @@ async fn read_full_text_file(path: String) -> Result<String, String> {
     Ok(text)
 }
 
+#[tauri::command]
+fn resolve_path(path: String) -> Result<String, String> {
+    let p = Path::new(&path);
+    let abs = if p.is_absolute() {
+        p.to_path_buf()
+    } else {
+        std::env::current_dir()
+            .map_err(|e| e.to_string())?
+            .join(p)
+    };
+    Ok(abs.to_string_lossy().into_owned())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_drag::init())
         .plugin(tauri_plugin_clipboard_manager::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
@@ -502,7 +516,8 @@ pub fn run() {
             delete_asset,
             rename_asset,
             open_in_folder,
-            read_full_text_file
+            read_full_text_file,
+            resolve_path
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
