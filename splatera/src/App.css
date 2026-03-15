@@ -1,13 +1,5 @@
 @font-face {
   font-family: 'JetBrainsMono NFP';
-  src: url('./assets/fonts/JetBrainsMonoNFP-Regular.ttf') format('truetype');
-  font-weight: 400;
-  font-style: normal;
-  font-display: swap;
-}
-
-@font-face {
-  font-family: 'JetBrainsMono NFP';
   src: url('./assets/fonts/JetBrainsMonoNL-SemiBold.ttf') format('truetype');
   font-weight: 700;
   font-style: normal;

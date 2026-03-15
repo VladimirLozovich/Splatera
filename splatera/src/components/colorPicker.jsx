@@ -12,8 +12,8 @@ import {
   useInteractions,
   FloatingFocusManager,
 } from '@floating-ui/react';
-import Input from './Input';
-import './ColorPicker.css';
+import Input from './input';
+import './colorPicker.css';
 
 export default function ColorPicker({ color, onChange }) {
   const[isOpen, setIsOpen] = useState(false);

@@ -4,7 +4,7 @@ import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import Input from './input';
 import Button from './button';
-import './InputModal.css';
+import './inputModal.css';
 
 const getLanguage = (ext) => {
   if (!ext) return 'text';

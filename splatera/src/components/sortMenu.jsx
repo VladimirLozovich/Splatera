@@ -15,7 +15,7 @@ import {
 } from '@floating-ui/react';
 
 import Button from './button';
-import './SortMenu.css';
+import './sortMenu.css';
 
 export default function SortMenu({ sortOrder, setSortOrder }) {
   const [isOpen, setIsOpen] = useState(false);

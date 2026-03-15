@@ -10,7 +10,7 @@ import {
   FloatingPortal,
 } from '@floating-ui/react';
 import { Copy, Clipboard, Trash2, Edit3, ExternalLink, Tags } from 'lucide-react';
-import './ContextMenu.css';
+import './contextMenu.css';
 
 export default function ContextMenu({ isOpen, setIsOpen, x, y, onAction, kind }) {
   const { refs, floatingStyles, context } = useFloating({

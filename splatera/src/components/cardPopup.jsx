@@ -1,9 +1,8 @@
 import { Copy, Maximize } from 'lucide-react';
 import Button from './button';
 import Label from './label';
-import './CardPopup.css';
+import './cardPopup.css';
 
-// ДОБАВЛЯЕМ новый пропс onManageTags
 export default function CardPopup({ title, dateText, tags =[], onCopy, onMaximize, onManageTags }) {
 
   const visibleTags = tags.slice(0, 2);
