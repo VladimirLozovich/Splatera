@@ -37,6 +37,8 @@ const mapAsset = (assetInfo) => ({
   last_modified_os: assetInfo.metadata.last_modified_os,
   dominant_colors: assetInfo.dominant_colors ?? [],
   contentSnippet: assetInfo.content_snippet,
+  previewPath: assetInfo.preview_path ?? null,
+  isBroken: assetInfo.is_broken ?? false,
 });
 
 function App() {
@@ -70,46 +72,46 @@ function App() {
   };
 
   // Единая логика импорта
-  const handleConfirmImport = async (paths, customTags, batchName) => {
-    setPendingImport(null);
-    const totalPaths = paths.length;
-    let totalAssetsProcessed = 0;
-  
-    setNotif({ show: true, title: 'Processing Assets', desc: `Preparing...`, progress: 0 });
-  
-    for (let i = 0; i < totalPaths; i++) {
-      const path = paths[i];
-      try {
-        const assets = await invoke('process_asset', { path });
-        
-        for (const assetInfo of assets) {
-          totalAssetsProcessed++;
+  const handleConfirmImport = async (confirmedFiles) => {
+  setPendingImport(null);
+  const totalPaths = confirmedFiles.length;
+  let totalAssetsProcessed = 0;
 
-          if (customTags.length > 0) {
-            const mergedTags = [...new Set([...assetInfo.tags, ...customTags])];
-            await invoke('update_asset_tags', { id: assetInfo.id, tags: mergedTags });
-          }
-          
-          if (batchName.trim()) {
-            const needsNumber = totalPaths > 1 || assets.length > 1;
-            const finalName = needsNumber ? `${batchName}_${totalAssetsProcessed}` : batchName;
-            await invoke('rename_asset', { id: assetInfo.id, newName: finalName });
-          }
+  setNotif({ show: true, title: 'Processing Assets', desc: `Preparing...`, progress: 0 });
+
+  for (let i = 0; i < totalPaths; i++) {
+    const { path, tags, batchName } = confirmedFiles[i];
+    try {
+      const assets = await invoke('process_asset', { path });
+
+      for (const assetInfo of assets) {
+        totalAssetsProcessed++;
+
+        if (tags.length > 0) {
+          const mergedTags = [...new Set([...assetInfo.tags, ...tags])];
+          await invoke('update_asset_tags', { id: assetInfo.id, tags: mergedTags });
         }
-        
-        setNotif(prev => ({
-          ...prev,
-          desc: `Processed ${i + 1} of ${totalPaths} entries...`,
-          progress: ((i + 1) / totalPaths) * 100,
-        }));
-      } catch (err) {
-        console.error("Error processing path:", path, err);
+
+        if (batchName.trim()) {
+          const needsNumber = totalPaths > 1 || assets.length > 1;
+          const finalName = needsNumber ? `${batchName}_${totalAssetsProcessed}` : batchName;
+          await invoke('rename_asset', { id: assetInfo.id, newName: finalName });
+        }
       }
+
+      setNotif(prev => ({
+        ...prev,
+        desc: `Processed ${i + 1} of ${totalPaths} entries...`,
+        progress: ((i + 1) / totalPaths) * 100,
+      }));
+    } catch (err) {
+      console.error("Error processing path:", path, err);
     }
-  
-    setRefreshTrigger(prev => prev + 1); // Перезагружаем библиотеку
-    showTemporaryNotif('Process Complete', `Successfully imported ${totalAssetsProcessed} files.`);
-  };
+  }
+
+  setRefreshTrigger(prev => prev + 1);
+  showTemporaryNotif('Process Complete', `Successfully imported ${totalAssetsProcessed} files.`);
+};
 
   // Единая точка загрузки библиотеки из Rust
   const loadLibrary = async (tag) => {

@@ -1,42 +1,86 @@
+import { Unlink } from 'lucide-react';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
-import { useState } from 'react'; 
+import { useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
+import { startDrag } from '@crabnebula/tauri-plugin-drag';
 import CardPopup from './cardPopup';
-import ContextMenu from './contextMenu'; 
+import ContextMenu from './contextMenu';
 import './card.css';
+
+// — Утилиты —
 
 const getLanguage = (ext) => {
   if (!ext) return 'text';
-  const map = { 
-    js: 'javascript', py: 'python', rs: 'rust', 
-    html: 'html', css: 'css', json: 'json', md: 'markdown' 
+  const map = {
+    js: 'javascript', py: 'python', rs: 'rust',
+    html: 'html', css: 'css', json: 'json', md: 'markdown',
   };
   return map[ext.toLowerCase()] || 'text';
 };
+
+const formatDate = (timestamp) => {
+  if (!timestamp) return 'Unknown date';
+  const date  = new Date(timestamp * 1000);
+  const day   = String(date.getDate()).padStart(2, '0');
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  return `${day}.${month}.${date.getFullYear()}`;
+};
+
+const notify = (title, desc) => {
+  window.dispatchEvent(new CustomEvent('show-notification', { detail: { title, desc } }));
+};
+
+// — Компонент —
 
 export default function Card({ data }) {
   const [menuData, setMenuData] = useState({ open: false, x: 0, y: 0 });
 
   if (!data || !data.id) return null;
 
+  const ext             = data.name.split('.').pop().toUpperCase();
+  const displayName     = data.name.replace(/\.[^/.]+$/, '');
+  const isCodeOrText    = data.kind === 'Code' || data.kind === 'Text';
+  const cardAspectRatio = data.width && data.height ? `${data.width} / ${data.height}` : '1 / 1';
+
+  const handleDragStart = async (e) => {
+    e.preventDefault();
+    try {
+      const rawIconPath = data.previewPath || data.path;
+      const iconPath = await invoke('resolve_path', { path: rawIconPath });
+      await startDrag({ item: [data.path], icon: iconPath });
+    } catch (err) {
+      console.error('Drag failed:', err);
+    }
+  };
+
   const handleContextMenu = (e) => {
-    e.preventDefault(); // Запрещаем стандартное меню Windows
-    setMenuData({
-      open: true,
-      x: e.clientX,
-      y: e.clientY,
-    });
+    e.preventDefault();
+    setMenuData({ open: true, x: e.clientX, y: e.clientY });
+  };
+
+  const handleCopy = async () => {
+    try {
+      if (isCodeOrText) {
+        await invoke('copy_text_to_clipboard', { path: data.path });
+        notify('Text Copied', `${data.name} copied to clipboard.`);
+      } else {
+        await invoke('copy_image_to_clipboard', { path: data.path });
+        notify('Image Copied', `${data.name} copied to clipboard.`);
+      }
+    } catch {
+      notify('Error', 'Failed to copy.');
+    }
   };
 
   const handleAction = async (action) => {
-    setMenuData({ ...menuData, open: false });
-  
+    setMenuData(prev => ({ ...prev, open: false }));
+
     switch (action) {
       case 'copy':
         await handleCopy();
         break;
-  
+
       case 'open_folder':
         try {
           await invoke('open_in_folder', { path: data.path });
@@ -44,138 +88,85 @@ export default function Card({ data }) {
           console.error(err);
         }
         break;
-  
+
       case 'rename':
-        window.dispatchEvent(new CustomEvent('open-rename-modal', { 
-          detail: data
-        }));
+        window.dispatchEvent(new CustomEvent('open-rename-modal', { detail: data }));
         break;
-  
+
+      case 'add_tag':
+        window.dispatchEvent(new CustomEvent('open-tag-modal', { detail: data }));
+        break;
+
       case 'delete':
         try {
           await invoke('delete_asset', { id: data.id });
-            
           window.dispatchEvent(new CustomEvent('reload-library'));
-    
-          window.dispatchEvent(new CustomEvent('show-notification', {
-            detail: { 
-              title: 'Asset Removed', 
-              desc: `"${data.name}" has been deleted.` 
-            }
-          }));
+          notify('Asset Removed', `"${data.name}" has been deleted.`);
         } catch (err) {
-            console.error('Failed to delete:', err);
+          console.error('Failed to delete:', err);
         }
         break;
 
-        case 'add_tag':
-        window.dispatchEvent(new CustomEvent('open-tag-modal', { 
-          detail: data 
-        }));
-        break;
-  
       default:
         break;
     }
   };
 
-  const formatDate = (timestamp) => {
-    if (!timestamp) return 'Unknown date';
-    const date = new Date(timestamp * 1000);
-    const day   = String(date.getDate()).padStart(2, '0');
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const year  = date.getFullYear();
-    return `${day}.${month}.${year}`;
-  };
-
-  const handleCopy = async () => {
-    try {
-      await invoke('copy_image_to_clipboard', { path: data.path });
-      
-      window.dispatchEvent(new CustomEvent('show-notification', {
-        detail: {
-          title: 'Image Copied',
-          desc: `${data.name} copied to clipboard.`
-        }
-      }));
-
-    } catch (error) {
-      console.error('Ошибка копирования:', error);
-      window.dispatchEvent(new CustomEvent('show-notification', {
-        detail: { title: 'Error', desc: 'Failed to copy image.' }
-      }));
-    }
-  };
-
-  const ext = data.name.split('.').pop().toUpperCase();
-  const displayName = data.name.replace(/\.[^/.]+$/, "");
-
-  const cardAspectRatio = data.width && data.height 
-    ? `${data.width} / ${data.height}` 
-    : '1 / 1';
-
-  const isCodeOrText = data.kind === 'Code' || data.kind === 'Text';
-
   return (
-    <div 
-      className="splatera-card" 
-      style={{ aspectRatio: cardAspectRatio }} 
+    <div
+      className="splatera-card"
+      style={{ aspectRatio: cardAspectRatio }}
+      draggable
+      onDragStart={handleDragStart}
       onContextMenu={handleContextMenu}
     >
-      {/* Рендерим либо код, либо картинку */}
+      {data.isBroken && (
+        <div className="broken-overlay">
+          <Unlink size={24} />
+          <span>File missing</span>
+        </div>
+      )}
+
       {isCodeOrText ? (
         <div className="code-preview-container">
           <SyntaxHighlighter
             language={getLanguage(ext)}
             style={vscDarkPlus}
-            customStyle={{ 
-              margin: 0, 
-              padding: 0, 
-              background: 'transparent', 
+            customStyle={{
+              margin: 0, padding: 0,
+              background: 'transparent',
               fontSize: '11px',
               overflow: 'hidden',
               userSelect: 'none',
-              pointerEvents: 'none'
+              pointerEvents: 'none',
             }}
-            wrapLongLines={true}
+            wrapLongLines
           >
-            {data.contentSnippet || "No preview available"}
+            {data.contentSnippet || 'No preview available'}
           </SyntaxHighlighter>
         </div>
       ) : (
-        <img 
-          src={data.preview} 
-          alt={data.name} 
-          loading="lazy"      
-          decoding="async"    
-        />
+        <img src={data.preview} alt={data.name} loading="lazy" decoding="async" />
       )}
-      
+
       <div className="popup-wrapper">
-        <CardPopup 
+        <CardPopup
           title={displayName}
           dateText={formatDate(data.created_at)}
           tags={data.tags ?? [ext]}
           onCopy={handleCopy}
-          
-          onMaximize={() => {
-            window.dispatchEvent(new CustomEvent('open-lightbox', { detail: data }));
-          }}
-
-          onManageTags={() => {
-            window.dispatchEvent(new CustomEvent('open-tag-modal', { 
-              detail: data
-            }));
-          }}
+          onMaximize={() => window.dispatchEvent(new CustomEvent('open-lightbox', { detail: data }))}
+          onManageTags={() => window.dispatchEvent(new CustomEvent('open-tag-modal', { detail: data }))}
         />
-        <ContextMenu 
+        <ContextMenu
           isOpen={menuData.open}
           setIsOpen={(val) => setMenuData(prev => ({ ...prev, open: val }))}
           x={menuData.x}
           y={menuData.y}
-          onAction={handleAction} 
+          onAction={handleAction}
+          kind={data.kind}
         />
-    </div>
+      </div>
     </div>
   );
 }

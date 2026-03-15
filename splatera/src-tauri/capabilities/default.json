@@ -6,6 +6,7 @@
     "main"
   ],
   "permissions": [
+    "drag:default",
     "core:default",
     "opener:default",
     "fs:default",
