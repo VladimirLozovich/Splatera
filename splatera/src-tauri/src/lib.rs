@@ -1,4 +1,6 @@
-use arboard::Clipboard;
+use arboard::{Clipboard, ImageData};
+use image::io::Reader as ImageReader;
+use std::borrow::Cow;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs;
@@ -8,6 +10,8 @@ use uuid::Uuid;
 use image::imageops::FilterType;
 use color_thief::{get_palette, ColorFormat};
 use walkdir::WalkDir;
+use std::env;
+use tauri::Manager;
 
 // ==========================================
 // 1. КОНСТАНТЫ
@@ -15,8 +19,8 @@ use walkdir::WalkDir;
 
 const IMAGE_EXTENSIONS: &[&str] = &["png", "jpg", "jpeg", "webp", "bmp", "gif"];
 const TEXT_EXTENSIONS:  &[&str] = &["txt", "md"];
-const CODE_EXTENSIONS:  &[&str] = &["js", "py", "rs", "css", "html"];
-const ALL_EXTENSIONS:   &[&str] = &["png", "jpg", "jpeg", "webp", "bmp", "gif", "txt", "md", "js", "py", "rs", "css", "html"];
+const CODE_EXTENSIONS:  &[&str] = &["js", "py", "rs", "css", "html", "json"];
+const ALL_EXTENSIONS:   &[&str] = &["png", "jpg", "jpeg", "webp", "bmp", "gif", "txt", "md", "js", "py", "rs", "css", "html", "json"];
 
 // ==========================================
 // 2. СТРУКТУРЫ ДАННЫХ
@@ -68,14 +72,28 @@ struct AppConfig {
     thumbnail_size: u32,
 }
 
-fn get_config() -> AppConfig {
-    let lib_path = "./.splatera_library".to_string();
-    fs::create_dir_all(format!("{}/thumbnails", &lib_path)).unwrap_or_default();
-    AppConfig {
-        library_path: lib_path,
+// FIX 1 & 2: Безопасный поиск пути и строгий Portable-маркер
+fn get_config(app: &tauri::AppHandle) -> Result<AppConfig, String> {
+    let exe_path = env::current_exe().map_err(|e| e.to_string())?;
+    let exe_dir = exe_path.parent().ok_or("Cannot determine exe directory")?;
+
+    let portable_flag = exe_dir.join("portable.txt");
+
+    let lib_path = if portable_flag.exists() {
+        exe_dir.join(".splatera_library")
+    } else {
+        let app_dir = app.path().app_data_dir().map_err(|e| e.to_string())?;
+        app_dir.join(".splatera_library")
+    };
+
+    fs::create_dir_all(&lib_path).unwrap_or_default();
+    fs::create_dir_all(lib_path.join("thumbnails")).unwrap_or_default();
+
+    Ok(AppConfig {
+        library_path: lib_path.to_string_lossy().into_owned(),
         theme_mode: "dark".to_string(),
         thumbnail_size: 400,
-    }
+    })
 }
 
 // ==========================================
@@ -196,9 +214,9 @@ fn process_single_path(path: &Path, config: &AppConfig) -> Result<Asset, String>
 // ==========================================
 
 #[tauri::command]
-async fn process_asset(path: String) -> Result<Vec<Asset>, String> {
+async fn process_asset(app: tauri::AppHandle, path: String) -> Result<Vec<Asset>, String> {
+    let config = get_config(&app)?;
     tokio::task::spawn_blocking(move || {
-        let config = get_config();
         let root = Path::new(&path);
 
         let paths: Vec<PathBuf> = if root.is_dir() {
@@ -238,8 +256,8 @@ async fn process_asset(path: String) -> Result<Vec<Asset>, String> {
 }
 
 #[tauri::command]
-fn get_library(filter_tag: Option<String>) -> Result<Vec<Asset>, String> {
-    let config = get_config();
+fn get_library(app: tauri::AppHandle, filter_tag: Option<String>) -> Result<Vec<Asset>, String> {
+    let config = get_config(&app)?;
     let mut assets = read_db(&config)?;
 
     for asset in assets.iter_mut() {
@@ -259,8 +277,8 @@ fn get_library(filter_tag: Option<String>) -> Result<Vec<Asset>, String> {
 }
 
 #[tauri::command]
-fn get_top_tags() -> Result<Vec<String>, String> {
-    let config = get_config();
+fn get_top_tags(app: tauri::AppHandle) -> Result<Vec<String>, String> {
+    let config = get_config(&app)?;
     let assets = read_db(&config)?;
 
     let mut counts: HashMap<String, usize> = HashMap::new();
@@ -275,32 +293,53 @@ fn get_top_tags() -> Result<Vec<String>, String> {
     Ok(sorted.into_iter().map(|(tag, _)| tag).collect())
 }
 
+// FIX 3: Восстановление потерянных превью (с выносом в spawn_blocking для UI)
 #[tauri::command]
-async fn recalculate_db() -> Result<(), String> {
-    let config = get_config();
-    let assets = read_db(&config)?;
+async fn recalculate_db(app: tauri::AppHandle) -> Result<(), String> {
+    let config = get_config(&app)?;
+    
+    tokio::task::spawn_blocking(move || {
+        let assets = read_db(&config)?;
+        let mut valid: Vec<Asset> = Vec::new();
 
-    let valid: Vec<Asset> = assets.into_iter()
-        .filter(|a| Path::new(&a.original_path).exists())
-        .map(|mut a| {
-            if let Ok(meta) = extract_metadata(Path::new(&a.original_path)) {
-                a.metadata = meta;
+        for mut a in assets {
+            if Path::new(&a.original_path).exists() {
+                if let Ok(meta) = extract_metadata(Path::new(&a.original_path)) {
+                    a.metadata = meta;
+                }
+                for tag in a.kind.default_tags() {
+                    if !a.tags.contains(&tag) { a.tags.push(tag); }
+                }
+                
+                // Восстанавливаем превью если оно потерялось
+                if a.kind == AssetKind::Image {
+                    let thumb_missing = a.preview_path.as_ref()
+                        .map(|p| !Path::new(p).exists())
+                        .unwrap_or(true);
+                        
+                    if thumb_missing {
+                        if let Ok(img) = image::open(&a.original_path) {
+                            a.preview_path = save_thumbnail(&img, &a.id, &config);
+                        }
+                    }
+                }
+                valid.push(a);
             }
-            for tag in a.kind.default_tags() {
-                if !a.tags.contains(&tag) { a.tags.push(tag); }
-            }
-            a
-        })
-        .collect();
+        }
 
-    write_db(&valid, &config)?;
-    println!("Recalculate complete. {} assets in DB.", valid.len());
+        write_db(&valid, &config)?;
+        println!("Recalculate complete. {} assets in DB.", valid.len());
+        Ok::<(), String>(())
+    })
+    .await
+    .unwrap_or_else(|e| Err(format!("Task panicked: {}", e)))?;
+
     Ok(())
 }
 
 #[tauri::command]
-async fn recalculate_colors() -> Result<usize, String> {
-    let config = get_config();
+async fn recalculate_colors(app: tauri::AppHandle) -> Result<usize, String> {
+    let config = get_config(&app)?;
     let mut assets = read_db(&config)?;
     let mut updated = 0;
 
@@ -320,10 +359,6 @@ async fn recalculate_colors() -> Result<usize, String> {
 
 #[tauri::command]
 async fn copy_image_to_clipboard(path: String) -> Result<(), String> {
-    use arboard::ImageData;
-    use image::io::Reader as ImageReader;
-    use std::borrow::Cow;
-
     let mut clipboard = Clipboard::new().map_err(|e| e.to_string())?;
     let img = ImageReader::open(&path)
         .map_err(|e| e.to_string())?
@@ -348,8 +383,8 @@ async fn copy_text_to_clipboard(path: String) -> Result<(), String> {
 }
 
 #[tauri::command]
-async fn update_asset_tags(id: String, tags: Vec<String>) -> Result<(), String> {
-    let config = get_config();
+async fn update_asset_tags(app: tauri::AppHandle, id: String, tags: Vec<String>) -> Result<(), String> {
+    let config = get_config(&app)?;
     let mut assets = read_db(&config)?;
     assets.iter_mut().find(|a| a.id == id)
         .ok_or("Asset not found".to_string())
@@ -358,8 +393,8 @@ async fn update_asset_tags(id: String, tags: Vec<String>) -> Result<(), String> 
 }
 
 #[tauri::command]
-async fn delete_asset(id: String) -> Result<(), String> {
-    let config = get_config();
+async fn delete_asset(app: tauri::AppHandle, id: String) -> Result<(), String> {
+    let config = get_config(&app)?;
     let mut assets = read_db(&config)?;
     let index = assets.iter().position(|a| a.id == id)
         .ok_or("Asset not found".to_string())?;
@@ -371,8 +406,8 @@ async fn delete_asset(id: String) -> Result<(), String> {
 }
 
 #[tauri::command]
-async fn rename_asset(id: String, new_name: String) -> Result<(), String> {
-    let config = get_config();
+async fn rename_asset(app: tauri::AppHandle, id: String, new_name: String) -> Result<(), String> {
+    let config = get_config(&app)?;
     let mut assets = read_db(&config)?;
     assets.iter_mut().find(|a| a.id == id)
         .ok_or("Asset not found".to_string())
@@ -380,23 +415,42 @@ async fn rename_asset(id: String, new_name: String) -> Result<(), String> {
     write_db(&assets, &config)
 }
 
+// FIX 5: Поддержка Linux для открытия в проводнике
 #[tauri::command]
 async fn open_in_folder(path: String) -> Result<(), String> {
     use std::process::Command;
+    
     #[cfg(target_os = "windows")]
     Command::new("explorer").arg("/select,").arg(&path).spawn().map_err(|e| e.to_string())?;
+    
     #[cfg(target_os = "macos")]
     Command::new("open").arg("-R").arg(&path).spawn().map_err(|e| e.to_string())?;
+    
+    #[cfg(target_os = "linux")]
+    Command::new("xdg-open")
+        .arg(Path::new(&path).parent().unwrap_or(Path::new("/")))
+        .spawn()
+        .map_err(|e| e.to_string())?;
+
     Ok(())
 }
 
+// FIX 4: Предупреждение об обрезке текста
 #[tauri::command]
 async fn read_full_text_file(path: String) -> Result<String, String> {
     use std::io::Read;
     let mut handle = fs::File::open(&path).map_err(|e| e.to_string())?.take(2 * 1024 * 1024);
     let mut buffer = Vec::new();
     handle.read_to_end(&mut buffer).map_err(|e| e.to_string())?;
-    Ok(String::from_utf8_lossy(&buffer).into_owned())
+
+    let was_truncated = buffer.len() == 2 * 1024 * 1024;
+    let mut text = String::from_utf8_lossy(&buffer).into_owned();
+
+    if was_truncated {
+        text.push_str("\n\n[... file truncated at 2MB ...]");
+    }
+
+    Ok(text)
 }
 
 #[tauri::command]
@@ -444,19 +498,20 @@ pub fn run() {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::fs;
-    use std::path::Path;
 
-    // ==========================================
-    // UNIT-ТЕСТЫ
-    // ==========================================
+    fn get_test_config() -> AppConfig {
+        let lib_path = "./.test_splatera_library".to_string();
+        fs::create_dir_all(format!("{}/thumbnails", &lib_path)).unwrap_or_default();
+        AppConfig {
+            library_path: lib_path,
+            theme_mode: "dark".to_string(),
+            thumbnail_size: 400,
+        }
+    }
 
-    // 1. Детектор типов файлов
     #[test]
     fn test_file_type_detection() {
-        let config = get_config();
-
-        // Создаём временный .py файл
+        let config = get_test_config();
         let path = Path::new("test_file.py");
         fs::write(path, "print('hello')").unwrap();
 
@@ -470,8 +525,7 @@ mod tests {
 
     #[test]
     fn test_text_file_detection() {
-        let config = get_config();
-
+        let config = get_test_config();
         let path = Path::new("test_file.txt");
         fs::write(path, "hello world").unwrap();
 
@@ -482,54 +536,34 @@ mod tests {
         fs::remove_file(path).unwrap();
     }
 
-    // 2. Парсер тегов (проверяем что теги из папки корректно извлекаются)
     #[test]
     fn test_tag_parsing() {
-        // Симулируем логику getAutoTags из фронтенда на уровне Rust
         let input = "logo, ui, dark";
         let tags: Vec<String> = input
             .split(',')
             .map(|t| t.trim().to_lowercase())
             .filter(|t| !t.is_empty())
             .collect();
-
         assert_eq!(tags, vec!["logo", "ui", "dark"]);
     }
 
-    // 3. Извлечение доминантных цветов
     #[test]
     fn test_color_extraction() {
         use image::{ImageBuffer, Rgb};
-
-        // Создаём красный квадрат 100x100
         let img = ImageBuffer::from_fn(100, 100, |_, _| Rgb([255u8, 0u8, 0u8]));
         let dynamic = image::DynamicImage::ImageRgb8(img);
-
         let colors = extract_colors(&dynamic);
 
         assert!(!colors.is_empty(), "Palette should not be empty");
-        // Доминантный цвет должен быть близок к красному
         let dominant = &colors[0];
         assert!(dominant.starts_with('#'), "Color should be HEX");
-        // Красная компонента должна быть высокой (FF или близко)
         let r = u8::from_str_radix(&dominant[1..3], 16).unwrap();
         assert!(r > 200, "Red channel should be dominant, got {}", r);
     }
 
-    // ==========================================
-    // INTEGRATION-ТЕСТЫ
-    // ==========================================
-
-    // 4. Запись и чтение БД
     #[test]
     fn test_db_read_write() {
-        let config = AppConfig {
-            library_path: "./test_library".to_string(),
-            theme_mode: "dark".to_string(),
-            thumbnail_size: 400,
-        };
-        fs::create_dir_all(format!("{}/thumbnails", config.library_path)).unwrap();
-
+        let config = get_test_config();
         let asset = Asset {
             id: "test-id-123".to_string(),
             original_path: "/some/path/file.png".to_string(),
@@ -550,21 +584,16 @@ mod tests {
             is_broken: false,
         };
 
-        // Записываем
         write_db(&[asset.clone()], &config).unwrap();
-
-        // Читаем обратно
         let loaded = read_db(&config).unwrap();
         assert_eq!(loaded.len(), 1);
         assert_eq!(loaded[0].id, "test-id-123");
         assert_eq!(loaded[0].kind, AssetKind::Image);
         assert_eq!(loaded[0].dominant_colors[0], "#FF0000");
 
-        // Чистим за собой
         fs::remove_dir_all(&config.library_path).unwrap();
     }
 
-    // 5. Обработка битых путей
     #[test]
     fn test_broken_path_returns_error() {
         let path = "/this/path/does/not/exist/file.txt".to_string();
@@ -572,31 +601,21 @@ mod tests {
         assert!(result.is_err(), "Should return error for missing file");
     }
 
-    // 6. Генерация превью
     #[test]
     fn test_thumbnail_generation() {
         use image::{ImageBuffer, Rgb};
+        let config = get_test_config();
 
-        let config = AppConfig {
-            library_path: "./test_thumbs_library".to_string(),
-            theme_mode: "dark".to_string(),
-            thumbnail_size: 400,
-        };
-        fs::create_dir_all(format!("{}/thumbnails", config.library_path)).unwrap();
-
-        // Создаём тестовое изображение
         let img_path = Path::new("test_image_thumb.png");
         let img = ImageBuffer::from_fn(800, 600, |_, _| Rgb([100u8, 150u8, 200u8]));
         img.save(img_path).unwrap();
 
         let asset = process_single_path(img_path, &config).unwrap();
 
-        // Проверяем что thumbnail создался
         assert!(asset.preview_path.is_some(), "Thumbnail should be created");
         let thumb_path = asset.preview_path.unwrap();
         assert!(Path::new(&thumb_path).exists(), "Thumbnail file should exist on disk");
 
-        // Чистим
         fs::remove_file(img_path).unwrap();
         fs::remove_dir_all(&config.library_path).unwrap();
     }
