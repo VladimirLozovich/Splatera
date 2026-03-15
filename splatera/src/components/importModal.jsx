@@ -22,7 +22,6 @@ const getAutoTags = (path) => {
 export default function ImportModal({ paths, onConfirm, onClose }) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [confirmed, setConfirmed] = useState([]);
-
   const [tags, setTags] = useState([]);
   const [inputValue, setInputValue] = useState('');
   const [batchName, setBatchName] = useState('');
@@ -32,11 +31,10 @@ export default function ImportModal({ paths, onConfirm, onClose }) {
 
   const currentPath = paths[currentIndex];
   const isLast = currentIndex === paths.length - 1;
+  const isMultiple = paths.length > 1;
 
-  // Загружаем превью и авто-теги при смене файла
   useEffect(() => {
     if (!currentPath) return;
-
     setPreviewUrl('');
     setPreviewCode('');
     setInputValue('');
@@ -71,12 +69,10 @@ export default function ImportModal({ paths, onConfirm, onClose }) {
     }
   };
 
-  // Подтвердить текущий файл
   const handleImport = () => {
     advance([...confirmed, { path: currentPath, tags, batchName }]);
   };
 
-  // Пропустить текущий файл
   const handleSkip = () => {
     if (isLast && confirmed.length === 0) {
       onClose();
@@ -85,7 +81,6 @@ export default function ImportModal({ paths, onConfirm, onClose }) {
     }
   };
 
-  // Импортировать все оставшиеся с авто-тегами
   const handleSkipAll = () => {
     const remaining = paths.slice(currentIndex).map(path => ({
       path,
@@ -120,18 +115,23 @@ export default function ImportModal({ paths, onConfirm, onClose }) {
 
         {/* СЧЁТЧИК */}
         <div className="modal-header">
-          importing {currentIndex + 1} of {paths.length}:
+          {isMultiple
+            ? `importing ${currentIndex + 1} of ${paths.length}:`
+            : 'importing 1 asset:'
+          }
         </div>
 
-        {/* БАТЧ-НЕЙМ */}
-        <div className="tag-input-group">
-          <input
-            type="text"
-            placeholder="batch rename (optional)..."
-            value={batchName}
-            onChange={(e) => setBatchName(e.target.value)}
-          />
-        </div>
+        {/* BATCH RENAME — только для множественного импорта */}
+        {isMultiple && (
+          <div className="tag-input-group">
+            <input
+              type="text"
+              placeholder="batch rename (optional)..."
+              value={batchName}
+              onChange={(e) => setBatchName(e.target.value)}
+            />
+          </div>
+        )}
 
         {/* ТЕГИ */}
         <div className="tags-container">
@@ -160,10 +160,12 @@ export default function ImportModal({ paths, onConfirm, onClose }) {
         {/* КНОПКИ */}
         <div className="modal-actions">
           <button className="modal-btn" onClick={onClose}>Cancel</button>
-          {paths.length > 1 && (
+          {isMultiple && (
             <button className="modal-btn" onClick={handleSkipAll}>Skip All</button>
           )}
-          <button className="modal-btn" onClick={handleSkip}>Skip</button>
+          {isMultiple && (
+            <button className="modal-btn" onClick={handleSkip}>Skip</button>
+          )}
           <button className="modal-btn confirm" onClick={handleImport}>Import</button>
         </div>
 
