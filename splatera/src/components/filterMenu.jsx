@@ -15,9 +15,9 @@ import {
   FloatingFocusManager,
 } from '@floating-ui/react';
 
-import Button from './Button';
-import Input from './Input';
-import Label from './Label';
+import Button from './button';
+import Input from './input';
+import Label from './label';
 import './FilterMenu.css';
 
 export default function FilterMenu({ 

@@ -126,7 +126,7 @@ export default function ImportModal({ paths, onConfirm, onClose }) {
           <div className="tag-input-group">
             <input
               type="text"
-              placeholder="batch rename (optional)..."
+              placeholder="Rename (optional)..."
               value={batchName}
               onChange={(e) => setBatchName(e.target.value)}
             />
@@ -149,7 +149,7 @@ export default function ImportModal({ paths, onConfirm, onClose }) {
         <div className="tag-input-group">
           <input
             type="text"
-            placeholder="add tags (comma separated)..."
+            placeholder="Add tags (comma separated)..."
             value={inputValue}
             onChange={(e) => setInputValue(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleAddTags()}

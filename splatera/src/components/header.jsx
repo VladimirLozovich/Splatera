@@ -101,14 +101,15 @@ export default function Header({
   }, []);
 
   const handleKeyDown = (e) => {
-    if (e.key === 'Enter' && searchQuery.trim() !== '') {
-      const newTag = searchQuery.trim().toLowerCase();
-      if (!selectedTags.includes(newTag)) {
-        setSelectedTags([...selectedTags, newTag]);
+    if (e.key === 'Enter') {
+      const trimmed = searchQuery.trim().toLowerCase();
+      if (trimmed && !selectedTags.includes(trimmed)) {
+        setSelectedTags([...selectedTags, trimmed]);
       }
       setSearchQuery('');
+      return;
     }
-
+  
     if (e.key === 'Backspace' && searchQuery === '' && selectedTags.length > 0) {
       setSelectedTags(selectedTags.slice(0, -1));
     }

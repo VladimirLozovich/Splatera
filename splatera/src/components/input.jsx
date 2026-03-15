@@ -1,5 +1,5 @@
-import { useRef, useEffect, useState } from 'react';
-import './Input.css';
+import { useRef, useEffect, useState, useCallback } from 'react';
+import './input.css';
 
 export default function Input({ 
   icon: Icon, 
@@ -12,13 +12,20 @@ export default function Input({
   const tagsRef = useRef(null);
   const [dynamicPadding, setDynamicPadding] = useState(12);
 
-  // Динамически считаем отступ слева, чтобы каретка текста начиналась после тегов
   useEffect(() => {
-    if (tagsRef.current) {
-      const tagsWidth = tagsRef.current.offsetWidth;
-      // Если теги есть, добавляем ширину контейнера + базовый отступ 12px
-      setDynamicPadding(tagsWidth > 0 ? tagsWidth + 24 : 12); 
-    }
+    const el = tagsRef.current;
+    if (!el) return;
+
+    const update = () => {
+      const w = el.offsetWidth;
+      setDynamicPadding(w > 0 ? w + 24 : 12);
+    };
+
+    update();
+
+    const observer = new ResizeObserver(update);
+    observer.observe(el);
+    return () => observer.disconnect();
   }, [selectedTags, selectedColors]);
 
   return (

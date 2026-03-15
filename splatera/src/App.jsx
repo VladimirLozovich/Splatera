@@ -24,22 +24,28 @@ const formatTag = (tag) => {
   return tag.charAt(0).toUpperCase() + tag.slice(1).toLowerCase();
 };
 
-const mapAsset = (assetInfo) => ({
-  id: assetInfo.id,
-  name: assetInfo.metadata.file_name,
-  path: assetInfo.original_path,
-  preview: assetInfo.preview_path ? convertFileSrc(assetInfo.preview_path) : '',
-  tags: (assetInfo.tags || []).map(formatTag),
-  kind: assetInfo.kind,
-  width: assetInfo.width,
-  height: assetInfo.height,
-  created_at: assetInfo.created_at,
-  last_modified_os: assetInfo.metadata.last_modified_os,
-  dominant_colors: assetInfo.dominant_colors ?? [],
-  contentSnippet: assetInfo.content_snippet,
-  previewPath: assetInfo.preview_path ?? null,
-  isBroken: assetInfo.is_broken ?? false,
-});
+const mapAsset = (assetInfo) => {
+  if (!assetInfo?.id) {
+    console.warn('mapAsset: missing id', assetInfo);
+    return null;
+  }
+  return {
+    id: assetInfo.id,
+    name: assetInfo.metadata.file_name,
+    path: assetInfo.original_path,
+    preview: assetInfo.preview_path ? convertFileSrc(assetInfo.preview_path) : '',
+    tags: (assetInfo.tags || []).map(formatTag),
+    kind: assetInfo.kind,
+    width: assetInfo.width,
+    height: assetInfo.height,
+    created_at: assetInfo.created_at,
+    last_modified_os: assetInfo.metadata.last_modified_os,
+    dominant_colors: assetInfo.dominant_colors ?? [],
+    contentSnippet: assetInfo.content_snippet,
+    previewPath: assetInfo.preview_path ?? null,
+    isBroken: assetInfo.is_broken ?? false,
+  };
+};
 
 function App() {
   const [tagData, setTagData] = useState(null);
@@ -118,7 +124,7 @@ function App() {
     try {
       setImages([]);
       const assets = await invoke('get_library', { filterTag: tag });
-      setImages(assets.map(mapAsset));
+      setImages(assets.map(mapAsset).filter(Boolean));
     } catch (error) {
       console.error("Ошибка при загрузке библиотеки:", error);
     }
@@ -227,7 +233,7 @@ function App() {
 
   const displayedImages = useMemo(() => {
     return images
-      .filter(img => img && typeof img === 'object' && img.id)
+      .filter(img => img != null && typeof img === 'object' && img.id != null)
       .filter(img => {
         const matchesQuery = !searchQuery ||
           img.name?.toLowerCase().includes(searchQuery.trim().toLowerCase()) ||
