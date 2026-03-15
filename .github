@@ -1,0 +1,78 @@
+name: "Publish Release"
+
+on:
+  push:
+    tags:
+      - 'v*'
+jobs:
+  publish-tauri:
+    permissions:
+      contents: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: "windows-latest"
+            args: ""
+          - platform: "macos-latest"
+            args: ""
+          - platform: "ubuntu-22.04"
+            args: ""
+
+    runs-on: ${{ matrix.platform }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: setup node
+        uses: actions/setup-node@v4
+        with:
+          node-version: lts/*
+
+      - name: install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: install dependencies (ubuntu only)
+        if: matrix.platform == 'ubuntu-22.04'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
+
+      - name: install frontend dependencies
+        run: npm install
+
+      - name: build tauri app
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tagName: v__VERSION__ # Тег берется из package.json
+          releaseName: "Splatera v__VERSION__"
+          releaseBody: "See the assets below for Installers and Portable versions."
+          releaseDraft: true
+          prerelease: false
+          args: ${{ matrix.args }}
+      
+      - name: Package Portable Windows
+        if: matrix.platform == 'windows-latest'
+        run: |
+          mkdir portable
+          cp target/release/splatera.exe portable/
+          touch portable/portable.txt
+          7z a Splatera_Win_Portable.zip ./portable/*
+
+      - name: Package Portable Linux
+        if: matrix.platform == 'ubuntu-22.04'
+        run: |
+          mkdir portable
+          cp target/release/splatera portable/
+          touch portable/portable.txt
+          zip -r Splatera_Linux_Portable.zip portable/
+
+      - name: Upload Portable Assets
+        uses: softprops/action-gh-release@v1
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          files: |
+            *.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
