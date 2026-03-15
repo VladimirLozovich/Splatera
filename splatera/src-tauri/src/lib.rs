@@ -497,6 +497,18 @@ fn resolve_path(path: String) -> Result<String, String> {
     Ok(abs.to_string_lossy().into_owned())
 }
 
+#[tauri::command]
+async fn copy_text_to_clipboard(path: String) -> Result<(), String> {
+    use std::io::Read;
+    let mut file = std::fs::File::open(&path).map_err(|e| e.to_string())?;
+    let mut content = String::new();
+    file.read_to_string(&mut content).map_err(|e| e.to_string())?;
+    
+    let mut clipboard = Clipboard::new().map_err(|e| e.to_string())?;
+    clipboard.set_text(content).map_err(|e| e.to_string())?;
+    Ok(())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -517,7 +529,8 @@ pub fn run() {
             rename_asset,
             open_in_folder,
             read_full_text_file,
-            resolve_path
+            resolve_path,
+            copy_text_to_clipboard
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
