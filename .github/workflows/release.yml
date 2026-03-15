@@ -4,6 +4,7 @@ on:
   push:
     tags:
       - 'v*'
+
 jobs:
   publish-tauri:
     permissions:
@@ -45,7 +46,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tagName: v__VERSION__ # Тег берется из package.json
+          tagName: v__VERSION__
           releaseName: "Splatera v__VERSION__"
           releaseBody: "See the assets below for Installers and Portable versions."
           releaseDraft: true
