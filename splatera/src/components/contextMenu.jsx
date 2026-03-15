@@ -9,10 +9,10 @@ import {
   useInteractions,
   FloatingPortal,
 } from '@floating-ui/react';
-import { Copy, Trash2, Edit3, ExternalLink, Tags } from 'lucide-react';
+import { Copy, Clipboard, Trash2, Edit3, ExternalLink, Tags } from 'lucide-react';
 import './ContextMenu.css';
 
-export default function ContextMenu({ isOpen, setIsOpen, x, y, onAction }) {
+export default function ContextMenu({ isOpen, setIsOpen, x, y, onAction, kind }) {
   const { refs, floatingStyles, context } = useFloating({
     open: isOpen,
     onOpenChange: setIsOpen,
@@ -42,6 +42,8 @@ export default function ContextMenu({ isOpen, setIsOpen, x, y, onAction }) {
 
   if (!isOpen) return null;
 
+  const isCodeOrText = kind === 'Code' || kind === 'Text';
+
   return (
     <FloatingPortal>
       <div
@@ -51,7 +53,10 @@ export default function ContextMenu({ isOpen, setIsOpen, x, y, onAction }) {
         className="context-menu"
       >
         <div className="context-menu-item" onClick={() => onAction('copy')}>
-          <Copy size={14} /> Copy Image
+          {isCodeOrText 
+            ? <><Clipboard size={14} /> Copy Text</>
+            : <><Copy size={14} /> Copy Image</>
+          }
         </div>
         <div className="context-menu-item" onClick={() => onAction('open_folder')}>
           <ExternalLink size={14} /> Show in Folder

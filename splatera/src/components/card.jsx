@@ -157,6 +157,7 @@ export default function Card({ data }) {
           x={menuData.x}
           y={menuData.y}
           onAction={handleAction}
+          kind={data.kind}
         />
       </div>
     </div>
